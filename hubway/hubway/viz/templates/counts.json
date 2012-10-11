@@ -1,0 +1,5 @@
+{"bikes":[
+{% for count in counts %}
+    {"number":"{{ count.bike_nr }}", "count":{{ count.bike_cnt }} }{% if not forloop.last %},{% endif%}
+{% endfor %}
+]}
