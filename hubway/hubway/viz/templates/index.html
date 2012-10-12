@@ -9,10 +9,16 @@ g.node circle {
     stroke-width: 0.5;
     cursor: pointer;
 }
+g.node circle.selected {
+    fill: rgb(51, 204, 51);
+}
 </style>
 </head>
 <body>
 <h1>Hello</h1>
+<div>
+<input type="button" value="Initialize" onclick="init();" />
+</div>
 <div id="chart"></div>
 <script type="text/javascript">
 var r = 768,
@@ -26,61 +32,115 @@ var r = 768,
         .value(function(d){ return d.count; })
         .size([r,r])
         .padding(1.5),
-    json = { bikes: [
-        {number: '10', count: 1000},
-        {number: '9', count: 800},
-        {number: '8', count: 700},
-        {number: '7', count: 500}
-    ]};
+    initializing = false;
 
-d3.json('counts/', function(json) {
-    var node = vis.selectAll('g.node')
-            .data(bubble.nodes(json)
-                .filter(function(d) { return !d.children; }))
-            .enter()
-            .append('g')
-            .attr('class', 'node')
-            .attr('transform', function(d) { 
-                return 'translate(' + d.x + ',' + d.y + ')';
-            });
-
-    node.append('title')
-        .text(function(d) { return d.value; });
-
-    node.append('circle')
-        .attr('r', function(d) { return d.r; });
-
-    node.on('mouseover', function(d,i) {
-        var node = d3.select(this);
-        
+function init() {
+    var node = d3.selectAll('g.node');
+    
+    if (node.length == 0 || node[0].length == 0) {
+        _init();
+    }
+    else {
         node.select('circle')
             .transition()
-            .style('fill', 'rgb(51,204,51)');
-    });
-    
-    node.on('mouseout', function(d,i) {
-        var node = d3.select(this);
-        
-        node.select('circle')
-            .transition()
-            .style('fill', null);
-    });
-    
-    node.on('click', function(d,i1) {
-        var node = d3.select(this);
-            
-        var others = d3.selectAll('g.node')
-            .select('circle')
-            .filter(function(d,i2) { return i1 != i2 })
-            .remove();
-            
-        node.transition()
             .duration(2000)
-            .attr('transform', 'translate(' + (r / 2) + ',' + (r / 2) + ')')
-            .select('circle')
-            .attr('r', r / 3);
+            .attr('r', 0)
+            .each('end', function(d,i){
+                node.remove();
+                _init(); 
+            });
+        node.select('text')
+            .transition()
+            .duration(2000)
+            .style('font-size', 0)
+            .attr('transform', 'translate(0,0)');
+    }
+};
+
+function _init() {
+    if (initializing) return;
+    initializing = true;
+    d3.json('counts/', function(json) {
+        var node = vis.selectAll('g.node')
+                .data(bubble.nodes(json)
+                    .filter(function(d) { return !d.children; }))
+                .enter()
+                .append('g')
+                .attr('class', 'node')
+                .attr('transform', function(d) { 
+                    return 'translate(' + d.x + ',' + d.y + ')';
+                });
+
+        node.append('title')
+            .text(function(d) { return d.value; });
+
+        node.append('circle')
+            .attr('r', function(d) { return d.r; });
+
+        node.on('mouseover', function(d,i) {
+            var node = d3.select(this);
+        
+            node.select('circle')
+                .transition()
+                .style('fill', 'rgb(51,204,51)');
+        });
+    
+        node.on('mouseout', function(d,i) {
+            var node = d3.select(this);
+        
+            node.select('circle')
+                .transition()
+                .style('fill', null);
+        });
+    
+        node.on('click', function(d,i1) {
+            var node = vis.selectAll('g.node')
+                .on('mouseover', null)
+                .on('mouseout', null)
+                .on('click', pipe)
+                .data([d], function(d) { return d.number; });
+            
+            node.exit()
+                .transition()
+                .duration(3000)
+                .select('circle')
+                .attr('r', 0)
+                .remove();
+
+            node.transition()
+                .duration(2000)
+                .attr('transform', 'translate(' + (r/2) + ',' + (r/2) + ')');
+            
+            node.select('circle')
+                .attr('class', 'selected')
+                .transition()
+                .duration(2000)
+                .attr('r', r / 3);
+            
+            node.append('text')
+                .attr('text-anchor', 'middle')
+                .attr('dominant-baseline', 'center')
+                .attr('transform', 'translate(0,2.5)')
+                .style('font-size', '5px')
+                .text(d.value)
+                .transition()
+                .duration(2000)
+                .attr('transform', 'translate(0,' + r/8 + ')')
+                .style('font-size', r/3 + 'px');
+        });
+        
+        initializing = false;
     });
-});
+};
+
+function pipe(d,i) {
+    var node = d3.select(this);
+    node.transition()
+        .duration(2000)
+        .attr('transform', node.attr('transform') + ' scale(0,1)');
+};
+
+init();
 </script>
 </body>
 </html>
