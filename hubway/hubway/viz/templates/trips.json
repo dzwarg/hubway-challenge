@@ -1,0 +1,5 @@
+{"trips":[
+{% for trip in trips %}
+    {"start":"{{ trip.start_date }}", "end":"{{ trip.end_date }}", "gender":"{{ trip.gender }}" }{% if not forloop.last %},{% endif%}
+{% endfor %}
+]}
