@@ -3,81 +3,124 @@
 <meta http-equiv="content-type" content="text/html;charset=utf8"/>
 <script type="text/javascript" src="http://d3js.org/d3.v2.js"></script>
 <style type="text/css">
+body {
+    font-family: Arial, Helvetica, sans-serif;
+}
+
+div#controls {
+    position:absolute;
+    z-index:10;
+}
+
+div#chart {
+    position:absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 9;
+}
+
 g.node circle {
     fill: rgb(255,255,255);
     stroke: rgb(0,0,0);
     stroke-width: 0.5;
     cursor: pointer;
 }
+
 g.node circle.selected {
     fill: rgb(51, 204, 51);
+}
+
+.bar rect {
+  fill: steelblue;
+  stroke: #fff;
+  stroke-width: 0.25;
+  shape-rendering: crispEdges;
+}
+
+.bar text {
+  fill: #fff;
+}
+
+.axis path, .axis line {
+  fill: none;
+  stroke: #000;
+  shape-rendering: crispEdges;
+}
+
+.axis text {
+    font-size: 10px;
 }
 </style>
 </head>
 <body>
-<h1>Hello</h1>
-<div>
-<input type="button" value="Initialize" onclick="preload();" />
+<div id="controls">
+<h1>Hubway Challenge Visualizations</h1>
+<input type="button" value="Popular Bikes" onclick="reset(bubble);" />
+<input type="button" value="Popularity Histogram" onclick="reset(histo);" />
 </div>
 <div id="chart"></div>
 <script type="text/javascript">
-var r = 768,
+var h = document.body.clientHeight,
+    w = document.body.clientWidth,
     vis = d3.select('#chart')
         .append('svg')
-        .attr('width', r)
-        .attr('height', r)
-        .attr('loading', false),
-    bubble = d3.layout.pack()
-        .sort(function(a,b){ return b.count - a.count; })
-        .children(function(d){ return d.bikes; })
-        .value(function(d){ return d.count; })
-        .size([r,r])
-        .padding(1.5),
-    loading = false;
+        .attr('width', w)
+        .attr('height', h)
+        .attr('loading', false);
 
 /*
- * Preload sets up the load. Cascades to load.
+ * Resets the svg to blank. Cascades to 'callback'
  */
-function preload() {
+function reset(callback) {
     if (vis.attr('mode') == 'bike-bubble') {
-        d3.selectAll('g.node')
+        d3.selectAll('g.bubble')
             .transition()
             .duration(1000)
             .style('fill-opacity', 0)
             .style('stroke-opacity', 0)
             .remove()
-            .each('end', load);
+            .each('end', callback);
     }
     else if (vis.attr('mode') == 'bike-pipe') {
-        d3.selectAll('g.pipe')
-            .on('mouseover',null)
-            .on('mouseout',null);
         d3.select('g.pipe-group')
             .transition()
             .duration(1000)
             .style('fill-opacity', 0)
             .style('stroke-opacity', 0)
             .remove()
-            .each('end', load)
-            .select('g.pipe')
-            .style('fill-opacity', 0)
-            .style('stroke-opacity', 0);
+            .each('end', callback);
     }
-    else {
-        load();
+    else if (vis.attr('mode') == 'bike-histo') {
+        d3.selectAll('g.histo')
+            .transition()
+            .duration(1000)
+            .style('fill-opacity', 0)
+            .style('stroke-opacity', 0)
+            .remove()
+            .each('end', callback);
     }
 };
 
 /*
  * Load the counts of trips.
  */
-function load() {
+function bubble() {
     if (vis.attr('loading') == 'true') return;
     vis.attr('mode', 'bike-bubble')
         .attr('loading', true);
     d3.json('counts/', function(json) {
-        var node = vis.selectAll('g.node')
-                .data(bubble.nodes(json)
+        var pack = d3.layout.pack()
+                .sort(function(a,b){ return b.count - a.count; })
+                .children(function(d){ return d.bikes; })
+                .value(function(d){ return d.count; })
+                .size([w,h])
+                .padding(1.5),
+            node = vis.append('g')
+                .attr('class', 'bubble')
+                .selectAll('g.node')
+                .data(pack.nodes(json)
                     .filter(function(d) { return !d.children; }))
                 .enter()
                 .append('g')
@@ -123,32 +166,95 @@ function load() {
 
             node.transition()
                 .duration(2000)
-                .attr('transform', 'translate(' + (r/2) + ',' + (r/2) + ')')
-                .remove()
+                .attr('transform', 'translate(' + (w/2) + ',' + (h/2) + ')')
                 .each('end', loadpipe);
+            
+            console.log(((w<h)?w:h)/3);
+            
+            console.log(node.select('circle').attr('r'));
             
             node.select('circle')
                 .attr('class', 'selected')
                 .transition()
                 .duration(2000)
-                .attr('r', r / 3)
-                .style('fill-opacity', 0)
-                .style('stroke-opacity', 0);
+                .attr('r', ((w<h)?w:h) / 3);
             
             node.append('text')
                 .attr('text-anchor', 'middle')
                 .attr('dominant-baseline', 'center')
                 .attr('transform', 'translate(0,2.5)')
                 .style('font-size', '5px')
-                .style('font-family', 'Arial')
                 .text(d.value)
                 .transition()
                 .duration(2000)
-                .attr('transform', 'translate(0,' + r/8 + ')')
-                .style('font-size', r/3 + 'px')
-                .style('fill-opacity', 0);
-            });
+                .attr('transform', 'translate(0,' + h/8 + ')')
+                .style('font-size', ((w<h)?w:h)/3 + 'px');
+                
+            vis.select('g.bubble')
+                .transition()
+                .duration(2000)
+                .style('fill-opacity', 0)
+                .style('stroke-opacity', 0)
+                .remove();
+        });
         
+        vis.attr('loading', false);
+    });
+};
+
+/* 
+ * Show a histogram of bike trips.
+ */
+function histo() {
+    if (vis.attr('loading') == 'true') return;
+    vis.attr('mode', 'bike-histo')
+        .attr('loading', true);
+    d3.json('counts/', function(json) {
+        var margin = {top: 25, right: 25, bottom: 25, left: 25},
+            width = w - margin.left - margin.right,
+            height = h - margin.top - margin.bottom;
+            x = d3.scale.linear()
+                .domain([0, d3.max(json.bikes, function(d) { return d.count; })])
+                .range([0,width]),
+            data = d3.layout.histogram()
+                .value(function(d){ return d.count; })
+                .bins(x.ticks(20))
+                (json.bikes),
+            y = d3.scale.linear()
+                .domain([0, d3.max(data, function(d) { return d.y; })])
+                .range([height, 0]),
+            xAxis = d3.svg.axis()
+                .scale(x)
+                .orient('bottom');
+        
+        var my_g = vis.append('g')
+            .attr('class', 'histo')
+            .attr('transform', 'translate(' + margin.left + ',' + margin.top + ')');
+            
+        var bar = my_g.selectAll('g.bar')
+            .data(data)
+            .enter()
+            .append('g')
+            .attr('class', 'bar')
+            .attr('transform', function(d,i) { return 'translate(' + x(d.x) + ',' + y(d.y) + ')'; });
+            
+        bar.append('rect')
+            .attr('x', 1)
+            .attr('width', x(data[0].dx) - 1)
+            .attr('height', function(d,i) { return height - y(d.y); });
+
+        bar.append("text")
+            .attr("dy", ".75em")
+            .attr("y", 6)
+            .attr("x", x(data[0].dx) / 2)
+            .attr("text-anchor", "middle")
+            .text(function(d) { return d.y; });
+    
+        my_g.append('g')
+            .attr('class', 'x axis')
+            .attr('transform', 'translate(0,' + height + ')')
+            .call(xAxis);
+            
         vis.attr('loading', false);
     });
 };
@@ -175,16 +281,15 @@ function loadpipe(d) {
             
         separators.append('line')
             .attr('x1', 0)
-            .attr('x2', r)
-            .attr('y1', function(d,i) { return d * r/20; })
-            .attr('y2', function(d,i) { return d * r/20; })
+            .attr('x2', w)
+            .attr('y1', function(d,i) { return d * h/20; })
+            .attr('y2', function(d,i) { return d * h/20; })
             .style('stroke', 'rgb(153,153,153)')
             .style('stroke-width', '1');
  
         separators.append('text')
             .attr('text-anchor', 'middle')
             .style('font-size', '14px')
-            .style('font-family', 'Arial')
             .attr('fill', 'rgb(153,153,153)')
             .text(function(d,i) {
                 var d1 = new Date(min + i * rowW), 
@@ -192,7 +297,7 @@ function loadpipe(d) {
                 return formatDate(d1) + ' - ' + formatDate(d2);
             })
             .attr('transform', function(d,i) {
-                return 'translate(' + (r/2) + ',' + (i*r/20+r/33) + ')';
+                return 'translate(' + (w/2) + ',' + (i*h/20+h/33) + ')';
             });
             
         node = node.selectAll('g.pipe')
@@ -208,12 +313,12 @@ function loadpipe(d) {
         
         node.append('rect')
             .attr('width', function(d,i) {
-                return (20*r)*(d.z-d.a)/range;
+                return (20*w)*(d.z-d.a)/range;
             })
-            .attr('height', (r/20)-1)
+            .attr('height', (h/20)-1)
             .attr('transform', function(d,i) { 
                 var rowN = parseInt((d.a - min) / rowW, 10);
-                return 'translate(' + ((20*r)*((d.a-min) % rowW)/range) + ',' + (rowN * r/20) + ')';
+                return 'translate(' + ((20*w)*((d.a-min) % rowW)/range) + ',' + (rowN * h/20) + ')';
             })
             .attr('fill', function(d,i) {
                 if (d.gender == 'Female') return 'rgb(255,51,153)';
@@ -229,7 +334,7 @@ function formatDate(date) {
     return (date.getMonth() + 1) + '/' + date.getDate() + '/' + date.getFullYear();
 };
 
-preload();
+bubble();
 </script>
 </body>
 </html>
