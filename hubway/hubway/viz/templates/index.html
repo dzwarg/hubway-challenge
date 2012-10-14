@@ -25,7 +25,8 @@ var r = 768,
     vis = d3.select('#chart')
         .append('svg')
         .attr('width', r)
-        .attr('height', r),
+        .attr('height', r)
+        .attr('loading', false),
     bubble = d3.layout.pack()
         .sort(function(a,b){ return b.count - a.count; })
         .children(function(d){ return d.bikes; })
@@ -38,18 +39,42 @@ var r = 768,
  * Preload sets up the load. Cascades to load.
  */
 function preload() {
-    d3.selectAll('g.node').remove();
-    d3.selectAll('g.pipe-group').remove();
-    d3.select(window).on('keydown', null);
-    load();
+    if (vis.attr('mode') == 'bike-bubble') {
+        d3.selectAll('g.node')
+            .transition()
+            .duration(1000)
+            .style('fill-opacity', 0)
+            .style('stroke-opacity', 0)
+            .remove()
+            .each('end', load);
+    }
+    else if (vis.attr('mode') == 'bike-pipe') {
+        d3.selectAll('g.pipe')
+            .on('mouseover',null)
+            .on('mouseout',null);
+        d3.select('g.pipe-group')
+            .transition()
+            .duration(1000)
+            .style('fill-opacity', 0)
+            .style('stroke-opacity', 0)
+            .remove()
+            .each('end', load)
+            .select('g.pipe')
+            .style('fill-opacity', 0)
+            .style('stroke-opacity', 0);
+    }
+    else {
+        load();
+    }
 };
 
 /*
  * Load the counts of trips.
  */
 function load() {
-    if (loading) return;
-    loading = true;
+    if (vis.attr('loading') == 'true') return;
+    vis.attr('mode', 'bike-bubble')
+        .attr('loading', true);
     d3.json('counts/', function(json) {
         var node = vis.selectAll('g.node')
                 .data(bubble.nodes(json)
@@ -83,72 +108,92 @@ function load() {
                 .style('fill', null);
         });
     
-        node.on('click', function(d,i1) {
+        node.on('click', function(d,i) {
             var node = vis.selectAll('g.node')
                 .on('mouseover', null)
                 .on('mouseout', null)
-                .on('click', pipe)
                 .data([d], function(d) { return d.number; });
             
             node.exit()
                 .transition()
-                .duration(3000)
+                .duration(2000)
+                .remove()
                 .select('circle')
-                .attr('r', 0)
-                .remove();
+                .attr('r', 0);
 
             node.transition()
                 .duration(2000)
-                .attr('transform', 'translate(' + (r/2) + ',' + (r/2) + ')');
+                .attr('transform', 'translate(' + (r/2) + ',' + (r/2) + ')')
+                .remove()
+                .each('end', loadpipe);
             
             node.select('circle')
                 .attr('class', 'selected')
                 .transition()
                 .duration(2000)
-                .attr('r', r / 3);
+                .attr('r', r / 3)
+                .style('fill-opacity', 0)
+                .style('stroke-opacity', 0);
             
             node.append('text')
                 .attr('text-anchor', 'middle')
                 .attr('dominant-baseline', 'center')
                 .attr('transform', 'translate(0,2.5)')
                 .style('font-size', '5px')
+                .style('font-family', 'Arial')
                 .text(d.value)
                 .transition()
                 .duration(2000)
                 .attr('transform', 'translate(0,' + r/8 + ')')
-                .style('font-size', r/3 + 'px');
-        });
+                .style('font-size', r/3 + 'px')
+                .style('fill-opacity', 0);
+            });
         
-        loading = false;
+        vis.attr('loading', false);
     });
 };
 
 /*
  * Turn one bike viz into a pipe of trips
  */
-function pipe(d,i) {
-    var node = d3.select(this);
-    node.transition()
-        .duration(2000)
-        .attr('transform', node.attr('transform') + ' scale(0,1)')
-        .each('end', function(d) {
-            loadpipe(d);
-        });
-};
-
 function loadpipe(d) {
-    if (loading) return;
-    loading = true;
-    d3.json('trips/' + d.number, function(json) {
+    if (vis.attr('loading') == 'true') return;
+    vis.attr('mode', 'bike-pipe')
+        .attr('loading', true);
+    d3.json('trips/' + encodeURIComponent(d.number), function(json) {
         var node = vis.append('g')
-            .attr('class', 'pipe-group')
-            .attr('data-scroll', '0')
-            .attr('data-scale', '1');
+            .attr('class', 'pipe-group');
             
-        node.append('rect')
-            .attr('height', r/2)
-            .attr('width', r*4)
-            .style('fill', 'rgb(204,204,204)');
+        var min = new Date(json.trips[0].start).valueOf(),
+            max = new Date(json.trips[json.trips.length-1].end).valueOf(),
+            range = max-min,
+            rowW = range / 20;
+            
+        var separators = node.selectAll('g.separator')
+            .data([0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19])
+            .enter();
+            
+        separators.append('line')
+            .attr('x1', 0)
+            .attr('x2', r)
+            .attr('y1', function(d,i) { return d * r/20; })
+            .attr('y2', function(d,i) { return d * r/20; })
+            .style('stroke', 'rgb(153,153,153)')
+            .style('stroke-width', '1');
+ 
+        separators.append('text')
+            .attr('text-anchor', 'middle')
+            .style('font-size', '14px')
+            .style('font-family', 'Arial')
+            .attr('fill', 'rgb(153,153,153)')
+            .text(function(d,i) {
+                var d1 = new Date(min + i * rowW), 
+                    d2 = new Date(min + (i + 1) * rowW);
+                return formatDate(d1) + ' - ' + formatDate(d2);
+            })
+            .attr('transform', function(d,i) {
+                return 'translate(' + (r/2) + ',' + (i*r/20+r/33) + ')';
+            });
             
         node = node.selectAll('g.pipe')
             .data(json.trips)
@@ -161,76 +206,27 @@ function loadpipe(d) {
             d.z = new Date(d.end).valueOf();
         });
         
-        var min = node[0][0].__data__.a,
-            max = node[0][node[0].length-1].__data__.z,
-            range = max-min;
-        
         node.append('rect')
-            .attr('width', function(d,i) { return (4*r)*(d.z-d.a)/range; })
-            .attr('height', r/2)
+            .attr('width', function(d,i) {
+                return (20*r)*(d.z-d.a)/range;
+            })
+            .attr('height', (r/20)-1)
             .attr('transform', function(d,i) { 
-                return 'translate(' + ((4*r)*(d.a-min)/range) + ',0)';
+                var rowN = parseInt((d.a - min) / rowW, 10);
+                return 'translate(' + ((20*r)*((d.a-min) % rowW)/range) + ',' + (rowN * r/20) + ')';
             })
             .attr('fill', function(d,i) {
-                if (d.gender == 'Female') return 'rgb(255,0,0)';
-                if (d.gender == 'Male') return 'rgb(0,0,255)';
-                return 'rgb(51,51,51)';
-            });
-            
-        node.on('mouseover', function(d, i) {
-                d3.select(this)
-                    .append('text')
-                    .attr('text-anchor', 'middle')
-                    .style('font-size', '10px')
-                    .text(new Date(d.start))
-                    .attr('transform', 'translate(' + ((4*r)*(d.a-min)/range) + ',' + r/4 + ')')
-                    .style('fill', 'rgb(255,255,255)');
-            })
-            .on('mouseout', function(d, i) {
-                d3.select(this)
-                    .select('text')
-                    .remove();
-            });
-            
-        d3.select(window).on('keydown', function() {
-            var offset = 0, scale=1;
-            switch (d3.event.keyCode) {
-                case 37: offset = 25; break;
-                case 39: offset = -25; break;
-            }
-            if (offset != 0) {
-                var node = vis.select('g.pipe-group');
-                
-                offset = (parseInt(node.attr('data-scroll'), 10) + offset);
-                scale = node.attr('data-scale');
-                if (offset < -3*r) {
-                    offset = -3*r;
-                }
-                else if (offset > 0) {
-                    offset = 0;
-                }
-                node.attr('data-scroll', ''+offset)
-                    .transition()
-                    .attr('transform', 'translate(' + offset + ',0)scale(' + scale + ',1)')
-            }
-        });
-        
-        d3.select('g.pipe-group')
-            .on('click', function() {
-                var node = d3.select(this), offset, scale;
-                offset = node.attr('data-scroll');
-                scale = parseFloat(node.attr('data-scale'));
-                if (d3.event.shiftKey)
-                    scale /= 2;
-                else
-                    scale *= 2;
-                node.attr('data-scale', ''+scale)
-                    .transition()
-                    .attr('transform', 'translate(' + offset + ',0)scale(' + scale + ',1)');
+                if (d.gender == 'Female') return 'rgb(255,51,153)';
+                if (d.gender == 'Male') return 'rgb(137,205,227)';
+                return 'rgb(102,102,102)';
             });
         
-        loading = false;
+        vis.attr('loading', false);
     });    
+};
+
+function formatDate(date) {
+    return (date.getMonth() + 1) + '/' + date.getDate() + '/' + date.getFullYear();
 };
 
 preload();
