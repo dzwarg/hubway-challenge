@@ -74,39 +74,36 @@ var h = document.body.clientHeight,
  * Resets the svg to blank. Cascades to 'callback'
  */
 function reset(callback) {
-    if (vis.attr('mode') == 'bike-bubble') {
-        d3.selectAll('g.bubble')
-            .transition()
-            .duration(1000)
-            .style('fill-opacity', 0)
-            .style('stroke-opacity', 0)
-            .remove()
-            .each('end', callback);
+    var mode = vis.attr('mode'),
+        node = null
+        xargs = [];
+    if (mode == 'bike-bubble') {
+        node = d3.selectAll('g.bubble');
     }
-    else if (vis.attr('mode') == 'bike-pipe') {
-        d3.select('g.pipe-group')
-            .transition()
-            .duration(1000)
-            .style('fill-opacity', 0)
-            .style('stroke-opacity', 0)
-            .remove()
-            .each('end', callback);
+    else if (mode == 'bike-pipe') {
+        node = d3.select('g.pipe-group');
     }
-    else if (vis.attr('mode') == 'bike-histo') {
-        d3.selectAll('g.histo')
-            .transition()
+    else if (mode == 'bike-histo') {
+        node = d3.selectAll('g.histo');
+    }
+    
+    if (node) {
+        for (var i = 1; i < arguments.length; i++) {
+            xargs.push(arguments[i]);
+        }
+        node.transition()
             .duration(1000)
             .style('fill-opacity', 0)
             .style('stroke-opacity', 0)
             .remove()
-            .each('end', callback);
+            .each('end', function() { callback.apply(this, xargs); });
     }
 };
 
 /*
  * Load the counts of trips.
  */
-function bubble() {
+function bubble(d) {
     if (vis.attr('loading') == 'true') return;
     vis.attr('mode', 'bike-bubble')
         .attr('loading', true);
@@ -128,7 +125,7 @@ function bubble() {
                 .attr('transform', function(d) { 
                     return 'translate(' + d.x + ',' + d.y + ')';
                 });
-
+                
         node.append('title')
             .text(function(d) { return d.value; });
 
@@ -138,6 +135,9 @@ function bubble() {
         node.on('mouseover', function(d,i) {
             var node = d3.select(this);
         
+            if (node.select('circle').style('fill')) {
+                node.select('circle').attr('original-fill', node.select('circle').style('fill'));
+            }
             node.select('circle')
                 .transition()
                 .style('fill', 'rgb(51,204,51)');
@@ -146,9 +146,10 @@ function bubble() {
         node.on('mouseout', function(d,i) {
             var node = d3.select(this);
         
+            var orig_fill = node.select('circle').attr('original-fill');
             node.select('circle')
                 .transition()
-                .style('fill', null);
+                .style('fill', orig_fill);
         });
     
         node.on('click', function(d,i) {
@@ -168,10 +169,6 @@ function bubble() {
                 .duration(2000)
                 .attr('transform', 'translate(' + (w/2) + ',' + (h/2) + ')')
                 .each('end', loadpipe);
-            
-            console.log(((w<h)?w:h)/3);
-            
-            console.log(node.select('circle').attr('r'));
             
             node.select('circle')
                 .attr('class', 'selected')
@@ -198,6 +195,14 @@ function bubble() {
                 .remove();
         });
         
+        if (d) {
+            var selected = vis.selectAll('g.node')
+                .data(d, function(d, i) { return d.number; });
+                
+            selected.select('circle')
+                .style('fill', 'steelblue');
+        }
+
         vis.attr('loading', false);
     });
 };
@@ -236,7 +241,10 @@ function histo() {
             .enter()
             .append('g')
             .attr('class', 'bar')
-            .attr('transform', function(d,i) { return 'translate(' + x(d.x) + ',' + y(d.y) + ')'; });
+            .attr('transform', function(d,i) { return 'translate(' + x(d.x) + ',' + y(d.y) + ')'; })
+            .on('click', function(d,i) {
+                reset(bubble, d);
+            });
             
         bar.append('rect')
             .attr('x', 1)
@@ -276,7 +284,7 @@ function loadpipe(d) {
             rowW = range / 20;
             
         var separators = node.selectAll('g.separator')
-            .data([0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19])
+            .data(d3.range(20))
             .enter();
             
         separators.append('line')
