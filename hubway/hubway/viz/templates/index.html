@@ -33,20 +33,20 @@ g.node circle.selected {
 }
 
 .bar rect {
-  fill: steelblue;
-  stroke: #fff;
-  stroke-width: 0.25;
-  shape-rendering: crispEdges;
+    fill: steelblue;
+    stroke: #fff;
+    stroke-width: 0.25;
+    cursor: pointer;
 }
 
 .bar text {
-  fill: #fff;
+    fill: #fff;
 }
 
 .axis path, .axis line {
-  fill: none;
-  stroke: #000;
-  shape-rendering: crispEdges;
+    fill: none;
+    stroke: #000;
+    shape-rendering: crispEdges;
 }
 
 .axis text {
@@ -129,79 +129,90 @@ function bubble(d) {
         node.append('title')
             .text(function(d) { return d.value; });
 
-        node.append('circle')
-            .attr('r', function(d) { return d.r; });
-
-        node.on('mouseover', function(d,i) {
-            var node = d3.select(this);
+        var attached = false;
+        var events = function() {
+            if (attached) return;
+            node.on('mouseover', function(d,i) {
+                var node = d3.select(this);
+            
+                if (node.select('circle').style('fill')) {
+                    node.select('circle').attr('original-fill', node.select('circle').style('fill'));
+                }
+                node.select('circle')
+                    .transition()
+                    .style('fill', 'rgb(51,204,51)');
+            });
         
-            if (node.select('circle').style('fill')) {
-                node.select('circle').attr('original-fill', node.select('circle').style('fill'));
+            node.on('mouseout', function(d,i) {
+                var node = d3.select(this);
+            
+                var orig_fill = node.select('circle').attr('original-fill');
+                node.select('circle')
+                    .transition()
+                    .style('fill', orig_fill);
+            });
+        
+            node.on('click', function(d,i) {
+                var node = vis.selectAll('g.node')
+                    .on('mouseover', null)
+                    .on('mouseout', null)
+                    .data([d], function(d) { return d.number; });
+                
+                node.exit()
+                    .transition()
+                    .duration(2000)
+                    .remove()
+                    .select('circle')
+                    .attr('r', 0);
+
+                node.transition()
+                    .duration(2000)
+                    .attr('transform', 'translate(' + (w/2) + ',' + (h/2) + ')')
+                    .each('end', loadpipe);
+                
+                node.select('circle')
+                    .attr('class', 'selected')
+                    .transition()
+                    .duration(2000)
+                    .attr('r', ((w<h)?w:h) / 3);
+                
+                node.append('text')
+                    .attr('text-anchor', 'middle')
+                    .attr('dominant-baseline', 'center')
+                    .attr('transform', 'translate(0,2.5)')
+                    .style('font-size', '5px')
+                    .text(d.value)
+                    .transition()
+                    .duration(2000)
+                    .attr('transform', 'translate(0,' + h/8 + ')')
+                    .style('font-size', ((w<h)?w:h)/3 + 'px');
+                    
+                vis.select('g.bubble')
+                    .transition()
+                    .duration(2000)
+                    .style('fill-opacity', 0)
+                    .style('stroke-opacity', 0)
+                    .remove();
+            });
+
+            if (d) {
+                var selected = vis.selectAll('g.node')
+                    .data(d, function(d, i) { return d.number; });
+                selected.select('circle')
+                    .transition()
+                    .duration(1000)
+                    .style('fill', 'steelblue');
             }
-            node.select('circle')
-                .transition()
-                .style('fill', 'rgb(51,204,51)');
-        });
-    
-        node.on('mouseout', function(d,i) {
-            var node = d3.select(this);
-        
-            var orig_fill = node.select('circle').attr('original-fill');
-            node.select('circle')
-                .transition()
-                .style('fill', orig_fill);
-        });
-    
-        node.on('click', function(d,i) {
-            var node = vis.selectAll('g.node')
-                .on('mouseover', null)
-                .on('mouseout', null)
-                .data([d], function(d) { return d.number; });
-            
-            node.exit()
-                .transition()
-                .duration(2000)
-                .remove()
-                .select('circle')
-                .attr('r', 0);
 
-            node.transition()
-                .duration(2000)
-                .attr('transform', 'translate(' + (w/2) + ',' + (h/2) + ')')
-                .each('end', loadpipe);
-            
-            node.select('circle')
-                .attr('class', 'selected')
-                .transition()
-                .duration(2000)
-                .attr('r', ((w<h)?w:h) / 3);
-            
-            node.append('text')
-                .attr('text-anchor', 'middle')
-                .attr('dominant-baseline', 'center')
-                .attr('transform', 'translate(0,2.5)')
-                .style('font-size', '5px')
-                .text(d.value)
-                .transition()
-                .duration(2000)
-                .attr('transform', 'translate(0,' + h/8 + ')')
-                .style('font-size', ((w<h)?w:h)/3 + 'px');
-                
-            vis.select('g.bubble')
-                .transition()
-                .duration(2000)
-                .style('fill-opacity', 0)
-                .style('stroke-opacity', 0)
-                .remove();
-        });
-        
-        if (d) {
-            var selected = vis.selectAll('g.node')
-                .data(d, function(d, i) { return d.number; });
-                
-            selected.select('circle')
-                .style('fill', 'steelblue');
-        }
+            attached = true;
+        };
+
+        node.append('circle')
+            .attr('r', 0)
+            .transition()
+            .duration(2000)
+            .attr('r', function(d) { return d.r; })
+            .each('end', events);
 
         vis.attr('loading', false);
     });
@@ -241,13 +252,21 @@ function histo() {
             .enter()
             .append('g')
             .attr('class', 'bar')
-            .attr('transform', function(d,i) { return 'translate(' + x(d.x) + ',' + y(d.y) + ')'; })
+            .attr('transform', function(d,i) { return 'translate(' + x(d.x) + ',' + height + ')'; })
             .on('click', function(d,i) {
                 reset(bubble, d);
             });
+
+        bar.transition()
+            .duration(2000)
+            .attr('transform', function(d,i) { return 'translate(' + x(d.x) + ',' + y(d.y) + ')'; });
             
         bar.append('rect')
             .attr('x', 1)
+            .attr('height', 0)
+            .attr('width', 1)
+            .transition()
+            .duration(2000)
             .attr('width', x(data[0].dx) - 1)
             .attr('height', function(d,i) { return height - y(d.y); });
 
@@ -332,7 +351,15 @@ function loadpipe(d) {
                 if (d.gender == 'Female') return 'rgb(255,51,153)';
                 if (d.gender == 'Male') return 'rgb(137,205,227)';
                 return 'rgb(102,102,102)';
-            });
+            })
+            .attr('fill-opacity', 0)
+            .transition()
+            .duration(2000)
+            .delay(function(d,i) {
+                var rowN = parseInt((d.a - min) / rowW, 10);
+                return rowN * 20; 
+            })
+            .attr('fill-opacity', 1);
         
         vis.attr('loading', false);
     });    
