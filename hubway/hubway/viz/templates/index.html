@@ -81,7 +81,7 @@ function reset(callback) {
         node = d3.selectAll('g.bubble');
     }
     else if (mode == 'bike-pipe') {
-        node = d3.select('g.pipe-group');
+        node = d3.selectAll('g.pipe, g.stripe, g.volume');
     }
     else if (mode == 'bike-histo') {
         node = d3.selectAll('g.histo');
@@ -294,30 +294,33 @@ function loadpipe(d) {
     vis.attr('mode', 'bike-pipe')
         .attr('loading', true);
     d3.json('trips/' + encodeURIComponent(d.number), function(json) {
-        var node = vis.append('g')
-            .attr('class', 'pipe-group');
-            
         var min = new Date(json.trips[0].start).valueOf(),
             max = new Date(json.trips[json.trips.length-1].end).valueOf(),
             range = max-min,
             rowW = range / 20;
             
-        var separators = node.selectAll('g.separator')
+        var node = vis.selectAll('g.stripe')
             .data(d3.range(20))
-            .enter();
+            .enter()
+            .append('g')
+            .attr('class', 'stripe');
             
-        separators.append('line')
+        node.append('line')
+            .attr('class', 'separator')
             .attr('x1', 0)
             .attr('x2', w)
             .attr('y1', function(d,i) { return d * h/20; })
             .attr('y2', function(d,i) { return d * h/20; })
-            .style('stroke', 'rgb(153,153,153)')
-            .style('stroke-width', '1');
+            .style('stroke', 'rgb(255,255,255)')
+            .style('stroke-width', '1')
+            .transition()
+            .delay(function(d,i) { return i * 100; })
+            .style('stroke', 'rgb(153,153,153)');
  
-        separators.append('text')
+        node.append('text')
             .attr('text-anchor', 'middle')
             .style('font-size', '14px')
-            .attr('fill', 'rgb(153,153,153)')
+            .style('fill', 'rgb(255,255,255)')
             .text(function(d,i) {
                 var d1 = new Date(min + i * rowW), 
                     d2 = new Date(min + (i + 1) * rowW);
@@ -325,9 +328,14 @@ function loadpipe(d) {
             })
             .attr('transform', function(d,i) {
                 return 'translate(' + (w/2) + ',' + (i*h/20+h/33) + ')';
-            });
+            })
+            .transition()
+            .delay(function(d,i) {
+                return i * 100;
+            })
+            .style('fill', 'rgb(127,127,127)');
             
-        node = node.selectAll('g.pipe')
+        node = vis.selectAll('g.pipe')
             .data(json.trips)
             .enter()
             .append('g')
@@ -346,23 +354,59 @@ function loadpipe(d) {
             .attr('transform', function(d,i) { 
                 var rowN = parseInt((d.a - min) / rowW, 10);
                 return 'translate(' + ((20*w)*((d.a-min) % rowW)/range) + ',' + (rowN * h/20) + ')';
+            });
+
+        node.style('fill-opacity', 0)
+            .style('fill', function(d,i) {
+                if (d.gender == 'Female') return 'rgb(255,0,0)';
+                if (d.gender == 'Male') return 'rgb(0,0,255)';
+                return 'rgb(51,51,51)';
             })
-            .attr('fill', function(d,i) {
-                if (d.gender == 'Female') return 'rgb(255,51,153)';
-                if (d.gender == 'Male') return 'rgb(137,205,227)';
-                return 'rgb(102,102,102)';
-            })
-            .attr('fill-opacity', 0)
             .transition()
             .duration(2000)
             .delay(function(d,i) {
                 var rowN = parseInt((d.a - min) / rowW, 10);
-                return rowN * 20; 
+                return rowN * 100; 
             })
-            .attr('fill-opacity', 1);
+            .style('fill-opacity', 1);
         
         vis.attr('loading', false);
-    });    
+    });
+
+    d3.json('volume/' + encodeURIComponent(d.number), function(json) {
+        var vlen = 10000, // not json.volume.length, some bins may be missing
+            nstripes = 20,
+            rowW = vlen / nstripes,
+            ymin = d3.min(json.volume, function(d) { return d.n; }),
+            ymax = d3.max(json.volume, function(d) { return d.n; }),
+            node = vis.insert('g', 'g.pipe')
+                .attr('class', 'volume');
+
+        node.selectAll('line')
+            .data(json.volume)
+            .enter()
+            .append('line')
+            .attr('x1', function(d,i) {
+                return (d.b % rowW) * w / rowW;
+            })
+            .attr('x2', function(d,i) {
+                return ((d.b % rowW) + 1) * w / rowW;
+            })
+            .attr('y1', function(d,i) {
+                var rowN = parseInt(d.b / rowW, 10) + 1;
+                return (rowN * h/20) - (d.n * (h/20) / ymax);
+            })
+            .attr('y2', function(d,i) {
+                var rowN = parseInt(d.b / rowW, 10) + 1;
+                return (rowN * h/20) - (d.n * (h/20) / ymax);
+            })
+            .style('stroke', '#999');
+
+        node.style('stroke-opacity', 0)
+            .transition()
+            .duration(2000)
+            .style('stroke-opacity', 1);
+    });
 };
 
 function formatDate(date) {

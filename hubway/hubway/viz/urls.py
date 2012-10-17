@@ -11,6 +11,7 @@ urlpatterns = patterns('',
     url(r'^$', views.home, name='home'),
     url(r'counts/$', views.counts, name='counts'),
     url(r'trips/(?P<number>.+)$', views.trips, name='trips'),
+    url(r'volume/(?P<number>.+)$', views.volume, name='volume'),
 
     # Uncomment the admin/doc line below to enable admin documentation:
     # url(r'^admin/doc/', include('django.contrib.admindocs.urls')),
