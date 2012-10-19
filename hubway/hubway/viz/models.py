@@ -12,7 +12,7 @@ class Trip(models.Model):
     bike_nr = models.TextField()
     subscription_type = models.TextField()
     zip_code = models.TextField()
-    birth_date = models.IntegerField()
+    birth_date = models.IntegerField(null=True)
     gender = models.TextField()
 
     class Meta:
