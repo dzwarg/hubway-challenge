@@ -1,1 +1,1 @@
-web: gunicorn hubway/hubway/wsgi.py -b 0.0.0.0:$PORT
+web: python hubway/manage.py run_gunicorn -b "0.0.0.0:$PORT" -w 1 --preload
