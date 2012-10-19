@@ -1,5 +1,5 @@
 from django.shortcuts import render_to_response
-from django.db.models import Count, Min, Max
+from django.db.models import Count, Min, Max, Q
 from django.db import connection
 
 from models import Trip
@@ -21,7 +21,11 @@ def counts(request):
     """
     A web 'handler' that returns the number of rides per bike.
     """
-    counts = { 'counts': Trip.objects.values('bike_nr').annotate(bike_cnt=Count('bike_nr')).order_by('-bike_cnt') }
+    qset = Trip.objects.all()
+    if 'g' in request.GET:
+        qset = qset.filter(gender=request.GET['g'])
+        
+    counts = { 'counts': qset.values('bike_nr').annotate(bike_cnt=Count('bike_nr')).order_by('-bike_cnt') }
 
     return render_to_response('counts.json', counts, mimetype='application/json')
 
@@ -30,7 +34,11 @@ def trips(request, number):
     """
     A web 'handler' that returns the trips of a single bicycle.
     """
-    trips = Trip.objects.filter(bike_nr=number).order_by('start_date')
+    qset = Trip.objects.all()
+    if 'g' in request.GET:
+        qset = qset.filter(gender=request.GET['g'])
+        
+    trips = qset.filter(bike_nr=number).order_by('start_date')
     
     def to_millis(x):
         return { 
@@ -51,7 +59,11 @@ def volume(request, number):
     The range of times is bounded the the first & last trip of the provided bike
     number.
     """
-    minmax = Trip.objects.filter(bike_nr=number).aggregate(tmin=Min('start_date'),tmax=Max('end_date'))
+    qset = Trip.objects.all()
+    if 'g' in request.GET:
+        qset = qset.filter(gender=request.GET['g'])
+        
+    minmax = qset.filter(bike_nr=number).aggregate(tmin=Min('start_date'),tmax=Max('end_date'))
     resolution = 10000 # 20 rows, 500 px each
 
     def epoch(param):

@@ -7,6 +7,10 @@ body {
     font-family: Arial, Helvetica, sans-serif;
 }
 
+h1 {
+    display: inline;
+}
+
 div#controls {
     position:absolute;
     z-index:10;
@@ -59,11 +63,18 @@ g.node circle.selected {
 <h1>Hubway Challenge Visualizations</h1>
 <input type="button" value="Popular Bikes" onclick="reset(bubble);" />
 <input type="button" value="Popularity Histogram" onclick="reset(histo);" />
+<input id="mbtn" type="radio" name="gender" onclick="reset();" value="Male"/><label for="mbtn">M</label>
+<input id="fbtn" type="radio" name="gender" onclick="reset();" value="Female"/><label for="fbtn">F</label>
+<input id="ubtn" type="radio" name="gender" onclick="reset();" value=""/><label for="ubtn">?</label>
+<input id="allbtn" type="radio" name="gender" onclick="reset();" checked="checked"/><label for="allbtn">All</label>
 </div>
 <div id="chart"></div>
 <script type="text/javascript">
 var h = document.body.clientHeight,
     w = document.body.clientWidth,
+    margin = {top: 60, right: 25, bottom: 25, left: 25},
+    width = w - margin.left - margin.right,
+    height = h - margin.top - margin.bottom,
     vis = d3.select('#chart')
         .append('svg')
         .attr('width', w)
@@ -77,6 +88,14 @@ function reset(callback) {
     var mode = vis.attr('mode'),
         node = null
         xargs = [];
+        
+    if (!callback) {
+        switch (mode) {
+            case 'bike-histo': callback = histo; break;
+            default: callback = bubble;
+        }
+    }
+    
     if (mode == 'bike-bubble') {
         node = d3.selectAll('g.bubble');
     }
@@ -107,15 +126,18 @@ function bubble(d) {
     if (vis.attr('loading') == 'true') return;
     vis.attr('mode', 'bike-bubble')
         .attr('loading', true);
-    d3.json('counts/', function(json) {
+    var extra = d3.select('input[name="gender"]:checked').attr('value');
+    extra = (extra !== null) ? ('?g=' + extra) : '';
+    d3.json('counts/' + extra, function(json) {
         var pack = d3.layout.pack()
                 .sort(function(a,b){ return b.count - a.count; })
                 .children(function(d){ return d.bikes; })
                 .value(function(d){ return d.count; })
-                .size([w,h])
+                .size([width,height])
                 .padding(1.5),
             node = vis.append('g')
                 .attr('class', 'bubble')
+                .attr('transform', 'translate(' + margin.left + ',' + margin.top + ')')
                 .selectAll('g.node')
                 .data(pack.nodes(json)
                     .filter(function(d) { return !d.children; }))
@@ -139,7 +161,6 @@ function bubble(d) {
                     node.select('circle').attr('original-fill', node.select('circle').style('fill'));
                 }
                 node.select('circle')
-                    .transition()
                     .style('fill', 'rgb(51,204,51)');
             });
         
@@ -148,7 +169,6 @@ function bubble(d) {
             
                 var orig_fill = node.select('circle').attr('original-fill');
                 node.select('circle')
-                    .transition()
                     .style('fill', orig_fill);
             });
         
@@ -167,14 +187,14 @@ function bubble(d) {
 
                 node.transition()
                     .duration(2000)
-                    .attr('transform', 'translate(' + (w/2) + ',' + (h/2) + ')')
+                    .attr('transform', 'translate(' + (width/2) + ',' + (height/2) + ')')
                     .each('end', loadpipe);
                 
                 node.select('circle')
                     .attr('class', 'selected')
                     .transition()
                     .duration(2000)
-                    .attr('r', ((w<h)?w:h) / 3);
+                    .attr('r', ((width<height)?width:height) / 3);
                 
                 node.append('text')
                     .attr('text-anchor', 'middle')
@@ -184,8 +204,8 @@ function bubble(d) {
                     .text(d.value)
                     .transition()
                     .duration(2000)
-                    .attr('transform', 'translate(0,' + h/8 + ')')
-                    .style('font-size', ((w<h)?w:h)/3 + 'px');
+                    .attr('transform', 'translate(0,' + height/8 + ')')
+                    .style('font-size', ((width<height)?width:height)/3 + 'px');
                     
                 vis.select('g.bubble')
                     .transition()
@@ -225,11 +245,10 @@ function histo() {
     if (vis.attr('loading') == 'true') return;
     vis.attr('mode', 'bike-histo')
         .attr('loading', true);
-    d3.json('counts/', function(json) {
-        var margin = {top: 25, right: 25, bottom: 25, left: 25},
-            width = w - margin.left - margin.right,
-            height = h - margin.top - margin.bottom;
-            x = d3.scale.linear()
+    var extra = d3.select('input[name="gender"]:checked').attr('value');
+    extra = (extra !== null) ? ('?g=' + extra) : '';
+    d3.json('counts/' + extra, function(json) {
+        var x = d3.scale.linear()
                 .domain([0, d3.max(json.bikes, function(d) { return d.count; })])
                 .range([0,width]),
             data = d3.layout.histogram()
@@ -293,7 +312,9 @@ function loadpipe(d) {
     if (vis.attr('loading') == 'true') return;
     vis.attr('mode', 'bike-pipe')
         .attr('loading', true);
-    d3.json('trips/' + encodeURIComponent(d.number), function(json) {
+    var extra = d3.select('input[name="gender"]:checked').attr('value');
+    extra = (extra !== null) ? ('?g=' + extra) : '';
+    d3.json('trips/' + encodeURIComponent(d.number) + extra, function(json) {
         var min = new Date(json.trips[0].start).valueOf(),
             max = new Date(json.trips[json.trips.length-1].end).valueOf(),
             range = max-min,
@@ -303,14 +324,15 @@ function loadpipe(d) {
             .data(d3.range(20))
             .enter()
             .append('g')
-            .attr('class', 'stripe');
+            .attr('class', 'stripe')
+            .attr('transform', 'translate(' + margin.left + ',' + margin.top + ')');
             
         node.append('line')
             .attr('class', 'separator')
             .attr('x1', 0)
-            .attr('x2', w)
-            .attr('y1', function(d,i) { return d * h/20; })
-            .attr('y2', function(d,i) { return d * h/20; })
+            .attr('x2', width)
+            .attr('y1', function(d,i) { return d * height/20; })
+            .attr('y2', function(d,i) { return d * height/20; })
             .style('stroke', 'rgb(255,255,255)')
             .style('stroke-width', '1')
             .transition()
@@ -318,16 +340,32 @@ function loadpipe(d) {
             .style('stroke', 'rgb(153,153,153)');
  
         node.append('text')
-            .attr('text-anchor', 'middle')
+            .attr('text-anchor', 'start')
             .style('font-size', '14px')
             .style('fill', 'rgb(255,255,255)')
             .text(function(d,i) {
-                var d1 = new Date(min + i * rowW), 
-                    d2 = new Date(min + (i + 1) * rowW);
-                return formatDate(d1) + ' - ' + formatDate(d2);
+                var date = new Date(min + i * rowW);
+                return formatDate(date);
             })
             .attr('transform', function(d,i) {
-                return 'translate(' + (w/2) + ',' + (i*h/20+h/33) + ')';
+                return 'translate(20,' + (i*height/20+height/33) + ')';
+            })
+            .transition()
+            .delay(function(d,i) {
+                return i * 100;
+            })
+            .style('fill', 'rgb(127,127,127)');
+            
+        node.append('text')
+            .attr('text-anchor', 'end')
+            .style('font-size', '14px')
+            .style('fill', 'rgb(255,255,255)')
+            .text(function(d,i) {
+                var date = new Date(min + (i + 1) * rowW);
+                return formatDate(date);
+            })
+            .attr('transform', function(d,i) {
+                return 'translate(' + (width - 20) + ',' + (i*height/20+height/33) + ')';
             })
             .transition()
             .delay(function(d,i) {
@@ -339,7 +377,8 @@ function loadpipe(d) {
             .data(json.trips)
             .enter()
             .append('g')
-            .attr('class', 'pipe');
+            .attr('class', 'pipe')
+            .attr('transform', 'translate(' + margin.left + ',' + margin.top + ')');
             
         node.each(function(d,i) {
             d.a = new Date(d.start).valueOf();
@@ -348,12 +387,13 @@ function loadpipe(d) {
         
         node.append('rect')
             .attr('width', function(d,i) {
-                return (20*w)*(d.z-d.a)/range;
+                return (20*width)*(d.z-d.a)/range;
             })
-            .attr('height', (h/20)-1)
+            .attr('height', (height/20)-1)
             .attr('transform', function(d,i) { 
                 var rowN = parseInt((d.a - min) / rowW, 10);
-                return 'translate(' + ((20*w)*((d.a-min) % rowW)/range) + ',' + (rowN * h/20) + ')';
+                return 'translate(' + ((20*width)*((d.a-min) % rowW)/range) + ',' + 
+                    (rowN * height/20) + ')';
             });
 
         node.style('fill-opacity', 0)
@@ -373,32 +413,33 @@ function loadpipe(d) {
         vis.attr('loading', false);
     });
 
-    d3.json('volume/' + encodeURIComponent(d.number), function(json) {
+    d3.json('volume/' + encodeURIComponent(d.number) + extra, function(json) {
         var vlen = 10000, // not json.volume.length, some bins may be missing
             nstripes = 20,
             rowW = vlen / nstripes,
             ymin = d3.min(json.volume, function(d) { return d.n; }),
             ymax = d3.max(json.volume, function(d) { return d.n; }),
             node = vis.insert('g', 'g.pipe')
-                .attr('class', 'volume');
+                .attr('class', 'volume')
+                .attr('transform', 'translate(' + margin.left + ',' + margin.top + ')');
 
         node.selectAll('line')
             .data(json.volume)
             .enter()
             .append('line')
             .attr('x1', function(d,i) {
-                return (d.b % rowW) * w / rowW;
+                return (d.b % rowW) * width / rowW;
             })
             .attr('x2', function(d,i) {
-                return ((d.b % rowW) + 1) * w / rowW;
+                return ((d.b % rowW) + 1) * width / rowW;
             })
             .attr('y1', function(d,i) {
                 var rowN = parseInt(d.b / rowW, 10) + 1;
-                return (rowN * h/20) - (d.n * (h/20) / ymax);
+                return (rowN * height/20) - (d.n * (height/20) / ymax);
             })
             .attr('y2', function(d,i) {
                 var rowN = parseInt(d.b / rowW, 10) + 1;
-                return (rowN * h/20) - (d.n * (h/20) / ymax);
+                return (rowN * height/20) - (d.n * (height/20) / ymax);
             })
             .style('stroke', '#999');
 
