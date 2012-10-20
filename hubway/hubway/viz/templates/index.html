@@ -38,17 +38,20 @@ g.node circle.selected {
 }
 
 g.node circle.m,
-g.pipe.m {
+g.pipe.m,
+g.bar.m rect {
     fill: #4682B4;
 }
 
 g.node circle.f,
-g.pipe.f {
+g.pipe.f,
+g.bar.f rect {
     fill: #FFC0CB;
 }
 
 g.node circle.u,
-g.pipe.u {
+g.pipe.u,
+g.bar.u rect {
     fill: #808080;
 }
 
@@ -59,14 +62,13 @@ g.node circle.u.selected {
     fill: rgb(51,204,51);
 }
 
-.bar rect {
-    fill: steelblue;
+g.bar rect {
     stroke: #fff;
     stroke-width: 0.25;
     cursor: pointer;
 }
 
-.bar text {
+g.bar text {
     fill: #fff;
 }
 
@@ -100,10 +102,10 @@ g.stripe rect {
 <h1>Hubway Challenge Visualizations</h1>
 <input type="button" value="Popular Bikes" onclick="reset(bubble);" />
 <input type="button" value="Popularity Histogram" onclick="reset(histo);" />
-<input id="mbtn" type="radio" name="gender" onclick="reset();" value="Male"/><label for="mbtn">M</label>
-<input id="fbtn" type="radio" name="gender" onclick="reset();" value="Female"/><label for="fbtn">F</label>
-<input id="ubtn" type="radio" name="gender" onclick="reset();" value=""/><label for="ubtn">?</label>
-<input id="allbtn" type="radio" name="gender" onclick="reset();" checked="checked"/><label for="allbtn">All</label>
+<input id="mbtn" type="radio" name="gender" onclick="reset();" value="Male" disabled="true"/><label for="mbtn">M</label>
+<input id="fbtn" type="radio" name="gender" onclick="reset();" value="Female" disabled="true"/><label for="fbtn">F</label>
+<input id="ubtn" type="radio" name="gender" onclick="reset();" value="" disabled="true"/><label for="ubtn">?</label>
+<input id="allbtn" type="radio" name="gender" onclick="reset();" checked="checked" disabled="true"/><label for="allbtn">All</label>
 </div>
 <div id="chart"></div>
 <script type="text/javascript">
@@ -128,8 +130,12 @@ function reset(callback) {
         
     if (!callback) {
         switch (mode) {
-            case 'bike-histo': callback = histo; break;
-            default: callback = bubble;
+            case 'bike-histo': 
+                callback = histo;
+                break;
+            default:
+                d3.selectAll('input[type="radio"]').attr('disabled',true);
+                callback = bubble;
         }
     }
     
@@ -275,9 +281,9 @@ function histo() {
     if (vis.attr('loading') == 'true') return;
     vis.attr('mode', 'bike-histo')
         .attr('loading', true);
-    var extra = d3.select('input[name="gender"]:checked').attr('value');
-    extra = (extra !== null) ? ('?g=' + extra) : '';
-    d3.json('counts/' + extra, function(json) {
+    var extra = d3.select('input[name="gender"]:checked').attr('value'),
+        extraUrl = (extra !== null) ? ('?g=' + extra) : '';
+    d3.json('counts/' + extraUrl, function(json) {
         var x = d3.scale.linear()
                 .domain([0, d3.max(json.bikes, function(d) { return d.count; })])
                 .range([0,width]),
@@ -292,17 +298,33 @@ function histo() {
                 .scale(x)
                 .orient('bottom');
         
-        var my_g = vis.append('g')
+        var grp = vis.append('g')
             .attr('class', 'histo')
             .attr('transform', 'translate(' + margin.left + ',' + margin.top + ')');
             
-        var bar = my_g.selectAll('g.bar')
+        grp.transition()
+            .duration(2000)
+            .each('end', function(d) {
+                d3.selectAll('input[type="radio"]').attr('disabled',null)
+            });
+        
+        // use 'u' for unknown gender
+        switch (extra) {
+            case "Male": extra = 'm'; break;
+            case "Female": extra = 'f'; break;
+            case "": extra = 'u'; break;
+            default: extra = 'x';
+        }
+        
+        var bar = grp.selectAll('g.bar')
             .data(data)
             .enter()
             .append('g')
-            .attr('class', 'bar')
+            .classed('bar', true)
+            .classed(extra, true)
             .attr('transform', function(d,i) { return 'translate(' + x(d.x) + ',' + height + ')'; })
             .on('click', function(d,i) {
+                d3.selectAll('input[type="radio"]').attr('disabled',true)
                 reset(bubble, d);
             });
 
@@ -326,7 +348,7 @@ function histo() {
             .attr("text-anchor", "middle")
             .text(function(d) { return d.y; });
     
-        my_g.append('g')
+        grp.append('g')
             .attr('class', 'x axis')
             .attr('transform', 'translate(0,' + height + ')')
             .call(xAxis);
