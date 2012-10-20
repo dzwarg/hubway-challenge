@@ -2,6 +2,7 @@
 <head>
 <meta http-equiv="content-type" content="text/html;charset=utf8"/>
 <script type="text/javascript" src="http://d3js.org/d3.v2.js"></script>
+<script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.8.2/jquery.min.js"></script>
 <style type="text/css">
 body {
     font-family: Arial, Helvetica, sans-serif;
@@ -36,6 +37,28 @@ g.node circle.selected {
     fill: rgb(51, 204, 51);
 }
 
+g.node circle.m,
+g.pipe.m {
+    fill: #4682B4;
+}
+
+g.node circle.f,
+g.pipe.f {
+    fill: #FFC0CB;
+}
+
+g.node circle.u,
+g.pipe.u {
+    fill: #808080;
+}
+
+g.node circle:hover,
+g.node circle.m.selected,
+g.node circle.f.selected,
+g.node circle.u.selected {
+    fill: rgb(51,204,51);
+}
+
 .bar rect {
     fill: steelblue;
     stroke: #fff;
@@ -55,6 +78,20 @@ g.node circle.selected {
 
 .axis text {
     font-size: 10px;
+}
+
+g.stripe line {
+    stroke: #fff;
+    stroke-width: 1;
+}
+
+g.stripe text {
+    font-size: 14px;
+    fill: #fff;
+}
+
+g.stripe rect {
+    fill-opacity: 0;
 }
 </style>
 </head>
@@ -119,26 +156,20 @@ function reset(callback) {
     }
 };
 
-/*
- * Load the counts of trips.
- */
-function bubble(d) {
-    if (vis.attr('loading') == 'true') return;
-    vis.attr('mode', 'bike-bubble')
-        .attr('loading', true);
-    var extra = d3.select('input[name="gender"]:checked').attr('value');
-    extra = (extra !== null) ? ('?g=' + extra) : '';
-    d3.json('counts/' + extra, function(json) {
+function bubblecounts(url, offx, offy, cls) {
+    var dfd = $.Deferred();
+    
+    d3.json(url, function(json) {
         var pack = d3.layout.pack()
                 .sort(function(a,b){ return b.count - a.count; })
                 .children(function(d){ return d.bikes; })
                 .value(function(d){ return d.count; })
-                .size([width,height])
+                .size([width/2,height/2])
                 .padding(1.5),
-            node = vis.append('g')
+            grp = vis.append('g')
                 .attr('class', 'bubble')
-                .attr('transform', 'translate(' + margin.left + ',' + margin.top + ')')
-                .selectAll('g.node')
+                .attr('transform', 'translate(' + (offx+margin.left) + ',' + (offy+margin.top) + ')'),
+            node = grp.selectAll('g.node')
                 .data(pack.nodes(json)
                     .filter(function(d) { return !d.children; }))
                 .enter()
@@ -151,90 +182,89 @@ function bubble(d) {
         node.append('title')
             .text(function(d) { return d.value; });
 
-        var attached = false;
-        var events = function() {
-            if (attached) return;
-            node.on('mouseover', function(d,i) {
-                var node = d3.select(this);
-            
-                if (node.select('circle').style('fill')) {
-                    node.select('circle').attr('original-fill', node.select('circle').style('fill'));
-                }
-                node.select('circle')
-                    .style('fill', 'rgb(51,204,51)');
-            });
-        
-            node.on('mouseout', function(d,i) {
-                var node = d3.select(this);
-            
-                var orig_fill = node.select('circle').attr('original-fill');
-                node.select('circle')
-                    .style('fill', orig_fill);
-            });
-        
-            node.on('click', function(d,i) {
-                var node = vis.selectAll('g.node')
-                    .on('mouseover', null)
-                    .on('mouseout', null)
-                    .data([d], function(d) { return d.number; });
-                
-                node.exit()
-                    .transition()
-                    .duration(2000)
-                    .remove()
-                    .select('circle')
-                    .attr('r', 0);
-
-                node.transition()
-                    .duration(2000)
-                    .attr('transform', 'translate(' + (width/2) + ',' + (height/2) + ')')
-                    .each('end', loadpipe);
-                
-                node.select('circle')
-                    .attr('class', 'selected')
-                    .transition()
-                    .duration(2000)
-                    .attr('r', ((width<height)?width:height) / 3);
-                
-                node.append('text')
-                    .attr('text-anchor', 'middle')
-                    .attr('dominant-baseline', 'center')
-                    .attr('transform', 'translate(0,2.5)')
-                    .style('font-size', '5px')
-                    .text(d.value)
-                    .transition()
-                    .duration(2000)
-                    .attr('transform', 'translate(0,' + height/8 + ')')
-                    .style('font-size', ((width<height)?width:height)/3 + 'px');
-                    
-                vis.select('g.bubble')
-                    .transition()
-                    .duration(2000)
-                    .style('fill-opacity', 0)
-                    .style('stroke-opacity', 0)
-                    .remove();
-            });
-
-            if (d) {
-                var selected = vis.selectAll('g.node')
-                    .data(d, function(d, i) { return d.number; });
-                selected.select('circle')
-                    .transition()
-                    .duration(1000)
-                    .style('fill', 'steelblue');
-            }
-
-            attached = true;
-        };
-
         node.append('circle')
             .attr('r', 0)
+            .attr('class', cls)
             .transition()
             .duration(2000)
-            .attr('r', function(d) { return d.r; })
-            .each('end', events);
+            .attr('r', function(d) { return d.r; });
+            
+        grp.transition()
+            .duration(2000)
+            .each('end', function() { dfd.resolve(); });
 
         vis.attr('loading', false);
+    });
+    
+    return dfd;
+};
+
+/*
+ * Load the counts of trips.
+ */
+function bubble(d) {
+    if (vis.attr('loading') == 'true') return;
+    vis.attr('mode', 'bike-bubble')
+        .attr('loading', true);
+    var extra = d3.select('input[name="gender"]:checked').attr('value'),
+        r = ((width>height)?height:width)/4,
+        dfd1 = bubblecounts('counts/?g=Male&l=75', r, 0, 'm'),
+        dfd2 = bubblecounts('counts/?g=Female&l=75', width/2-r, 0, 'f'),
+        dfd3 = bubblecounts('counts/?g=&l=75', width/4, height/2 * Math.cos(60*2/Math.PI), 'u');
+        
+    $.when(dfd1, dfd2, dfd3).then(function() {
+        var node = d3.selectAll('g.node');
+        
+        node.on('mouseover', function(d1,i) {
+            var node = vis.selectAll('g.node')
+                    .select(function(d) { return (d.number == d1.number)?this:null; }),
+                cir = node.select('circle');
+
+            cir.classed('selected', true);
+        });
+    
+        node.on('mouseout', function(d1,i) {
+            var node = vis.selectAll('g.node')
+                    .select(function(d) { return (d.number == d1.number)?this:null; }),
+                cir = node.select('circle');
+        
+            cir.classed('selected', false);
+        });
+        
+        node.on('click', function(d,i) {
+            var node = vis.selectAll('g.node')
+                .on('mouseover', null)
+                .on('mouseout', null)
+                .data([d], function(d) { return d.number; });
+            
+            node.exit()
+                .transition()
+                .duration(2000)
+                .remove()
+                .select('circle')
+                .attr('r', 0);
+            
+            node.transition()
+                .duration(2000)
+                .each('end', loadpipe);
+                
+            vis.selectAll('g.bubble')
+                .transition()
+                .duration(2000)
+                .style('fill-opacity', 0)
+                .style('stroke-opacity', 0)
+                .remove();
+        });
+/*
+        if (d) {
+            var selected = vis.selectAll('g.node')
+                .data(d, function(d, i) { return d.number; });
+            selected.select('circle')
+                .transition()
+                .duration(1000)
+                .style('fill', 'steelblue');
+        }
+*/
     });
 };
 
@@ -314,7 +344,7 @@ function loadpipe(d) {
         .attr('loading', true);
     var extra = d3.select('input[name="gender"]:checked').attr('value');
     extra = (extra !== null) ? ('?g=' + extra) : '';
-    d3.json('trips/' + encodeURIComponent(d.number) + extra, function(json) {
+    d3.json('trips/' + encodeURIComponent(d.number) + '/' + extra, function(json) {
         var min = new Date(json.trips[0].start).valueOf(),
             max = new Date(json.trips[json.trips.length-1].end).valueOf(),
             range = max-min,
@@ -333,16 +363,12 @@ function loadpipe(d) {
             .attr('x2', width)
             .attr('y1', function(d,i) { return d * height/20; })
             .attr('y2', function(d,i) { return d * height/20; })
-            .style('stroke', 'rgb(255,255,255)')
-            .style('stroke-width', '1')
             .transition()
             .delay(function(d,i) { return i * 100; })
-            .style('stroke', 'rgb(153,153,153)');
+            .style('stroke', 'rgb(204,204,204)');
  
         node.append('text')
             .attr('text-anchor', 'start')
-            .style('font-size', '14px')
-            .style('fill', 'rgb(255,255,255)')
             .text(function(d,i) {
                 var date = new Date(min + i * rowW);
                 return formatDate(date);
@@ -354,12 +380,10 @@ function loadpipe(d) {
             .delay(function(d,i) {
                 return i * 100;
             })
-            .style('fill', 'rgb(127,127,127)');
+            .style('fill', 'rgb(204,204,204)');
             
         node.append('text')
             .attr('text-anchor', 'end')
-            .style('font-size', '14px')
-            .style('fill', 'rgb(255,255,255)')
             .text(function(d,i) {
                 var date = new Date(min + (i + 1) * rowW);
                 return formatDate(date);
@@ -371,7 +395,7 @@ function loadpipe(d) {
             .delay(function(d,i) {
                 return i * 100;
             })
-            .style('fill', 'rgb(127,127,127)');
+            .style('fill', 'rgb(204,204,204)');
             
         node = vis.selectAll('g.pipe')
             .data(json.trips)
@@ -396,12 +420,9 @@ function loadpipe(d) {
                     (rowN * height/20) + ')';
             });
 
-        node.style('fill-opacity', 0)
-            .style('fill', function(d,i) {
-                if (d.gender == 'Female') return 'rgb(255,0,0)';
-                if (d.gender == 'Male') return 'rgb(0,0,255)';
-                return 'rgb(51,51,51)';
-            })
+        node.classed('m', function(d) { return d.gender == 'Male'; })
+            .classed('f', function(d) { return d.gender == 'Female'; })
+            .classed('u', function(d) { return d.gender == ''; })
             .transition()
             .duration(2000)
             .delay(function(d,i) {
@@ -413,7 +434,7 @@ function loadpipe(d) {
         vis.attr('loading', false);
     });
 
-    d3.json('volume/' + encodeURIComponent(d.number) + extra, function(json) {
+    d3.json('volume/' + encodeURIComponent(d.number) + '/' + extra, function(json) {
         var vlen = 10000, // not json.volume.length, some bins may be missing
             nstripes = 20,
             rowW = vlen / nstripes,

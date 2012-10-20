@@ -24,8 +24,14 @@ def counts(request):
     qset = Trip.objects.all()
     if 'g' in request.GET:
         qset = qset.filter(gender=request.GET['g'])
-        
-    counts = { 'counts': qset.values('bike_nr').annotate(bike_cnt=Count('bike_nr')).order_by('-bike_cnt') }
+    lmt = None
+    if 'l' in request.GET:
+        try:
+            lmt = min(int(request.GET['l']), 75)
+        except:
+            logger.warn('Incompatible value recieved for limit: "l=%s"' % request.GET['l'])
+
+    counts = { 'counts': qset.values('bike_nr').annotate(bike_cnt=Count('bike_nr')).order_by('-bike_cnt')[:lmt] }
 
     return render_to_response('counts.json', counts, mimetype='application/json')
 
