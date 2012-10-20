@@ -4,7 +4,7 @@ python:
 install: pip install -r requirements.txt
 env: DATABASE_URL=postgres://hubway:hubway@localhost/hubwayapp
 before_script:
-  - psql -c "create role hubway with password 'hubway';" -U postgres
+  - psql -c "create role hubway with password 'hubway' login;" -U postgres
   - psql -c "create database hubwayapp with owner hubway;" -U postgres
 script:
   - hubway/manage.py syncdb
