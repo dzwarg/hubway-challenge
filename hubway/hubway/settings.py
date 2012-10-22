@@ -142,6 +142,12 @@ LOGGING = {
             'level': 'ERROR',
             'filters': ['require_debug_false'],
             'class': 'django.utils.log.AdminEmailHandler'
+        },
+        'rollinglogfile': {
+            'level': 'DEBUG' if DEBUG else 'WARN',
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': 'logs/app.log',
+            'maxBytes': 5*1024*1024
         }
     },
     'loggers': {
@@ -150,8 +156,15 @@ LOGGING = {
             'level': 'ERROR',
             'propagate': True,
         },
+        'hubway': {
+            'handlers': ['rollinglogfile'],
+            'level': 'DEBUG' if DEBUG else 'WARN'
+        }
     }
 }
 
 import dj_database_url
 DATABASES = {'default': dj_database_url.config()}
+
+import os,hubway
+DATA_DIR = os.path.abspath(hubway.__path__[0] + '/../../data')
