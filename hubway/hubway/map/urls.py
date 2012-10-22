@@ -1,15 +1,15 @@
 from django.conf.urls import patterns, include, url
-from django.http import HttpResponseRedirect
 
 # Uncomment the next two lines to enable the admin:
 # from django.contrib import admin
 # admin.autodiscover()
 
+import views
+
 urlpatterns = patterns('',
     # Examples:
-    url(r'^$', lambda x:HttpResponseRedirect('/viz/'), name='index'),
-    url(r'^viz/', include('hubway.viz.urls')),
-    url(r'^map/', include('hubway.map.urls')),
+    url(r'^$', views.home, name='map-home'),
+    url(r'trips/$', views.trips, name='map-trips'),
 
     # Uncomment the admin/doc line below to enable admin documentation:
     # url(r'^admin/doc/', include('django.contrib.admindocs.urls')),

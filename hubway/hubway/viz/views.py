@@ -13,7 +13,7 @@ def home(request):
     """
     The initial page for the web application.
     """
-    return render_to_response('index.html', mimetype='text/html')
+    return render_to_response('viz/index.html', mimetype='text/html')
 
 
 # Create your views here.
@@ -33,7 +33,7 @@ def counts(request):
 
     counts = { 'counts': qset.values('bike_nr').annotate(bike_cnt=Count('bike_nr')).order_by('-bike_cnt')[:lmt] }
 
-    return render_to_response('counts.json', counts, mimetype='application/json')
+    return render_to_response('viz/counts.json', counts, mimetype='application/json')
 
 
 def trips(request, number):
@@ -57,7 +57,7 @@ def trips(request, number):
     
     trips = { 'trips': trips }
     
-    return render_to_response('trips.json', trips, mimetype='application/json')
+    return render_to_response('viz/trips.json', trips, mimetype='application/json')
 
 def volume(request, number):
     """
@@ -92,4 +92,4 @@ FROM TRIPS WHERE %s >= %s AND %s <= %s GROUP BY BIN""" % (
 
     tvol = { 'volume': cursor.fetchall() }
 
-    return render_to_response('volume.json', tvol, mimetype='application/json')
+    return render_to_response('viz/volume.json', tvol, mimetype='application/json')
