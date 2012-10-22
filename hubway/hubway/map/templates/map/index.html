@@ -25,6 +25,13 @@ div#chart {
     right: 0;
     z-index: 9;
 }
+
+g path {
+    stroke-linecap: round;
+    stroke-width: 0.01px;
+    stroke: #000;
+    fill: #fff;
+}
 </style>
 </head>
 <body>
@@ -38,10 +45,40 @@ var h = document.body.clientHeight,
     margin = {top: 60, right: 25, bottom: 25, left: 25},
     width = w - margin.left - margin.right,
     height = h - margin.top - margin.bottom,
-    vis = d3.select('#chart')
+    zoom = d3.behavior.zoom();
+
+zoom.scale([95]);
+zoom.translate([-34500.34993394186,-17880.63270005254]);
+
+var vis = d3.select('#chart')
         .append('svg')
         .attr('width', w)
-        .attr('height', h);
+        .attr('height', h)
+        .attr('pointer-events', 'all')
+        .append('g')
+        .call(zoom.on('zoom', redraw))
+        .append('g')
+        .attr('transform', 'translate(-34500.34993394186,-17880.63270005254)scale(95.00950852026126)');
+
+function map() {
+    d3.json('districts/', function(collection) {
+        vis.selectAll('path')
+            .data(collection.features)
+            .enter()
+            .append('path')
+            .attr('d', d3.geo.path().projection(d3.geo.mercator()));
+
+        vis.on('mousewheel', function(){
+            alert('wheel!');
+        });
+    });
+};
+
+function redraw() {
+    vis.attr('transform', 'translate(' + d3.event.translate + ')scale(' + d3.event.scale + ')');
+};
+
+map();
 </script>
 </body>
 </html>

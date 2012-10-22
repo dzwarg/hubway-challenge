@@ -9,7 +9,7 @@ import views
 urlpatterns = patterns('',
     # Examples:
     url(r'^$', views.home, name='map-home'),
-    url(r'trips/$', views.trips, name='map-trips'),
+    url(r'districts/$', views.districts, name='map-districts'),
 
     # Uncomment the admin/doc line below to enable admin documentation:
     # url(r'^admin/doc/', include('django.contrib.admindocs.urls')),
