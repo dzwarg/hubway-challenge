@@ -10,6 +10,8 @@ urlpatterns = patterns('',
     # Examples:
     url(r'^$', views.home, name='map-home'),
     url(r'districts/$', views.districts, name='map-districts'),
+    url(r'^bounds/$', views.bounds, name='map-bounds'),
+    url(r'^routes/$', views.routes, name='map-route'),
 
     # Uncomment the admin/doc line below to enable admin documentation:
     # url(r'^admin/doc/', include('django.contrib.admindocs.urls')),

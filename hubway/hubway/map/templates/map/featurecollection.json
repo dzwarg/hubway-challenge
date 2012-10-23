@@ -1,0 +1,11 @@
+{"type":"FeatureCollection","features":[
+{% for feature in features %}{
+    "type":"Feature",
+    "id":"{{ feature.0 }}",
+    "geometry":{
+        "type":"LineString",
+        "coordinates":[{% for coord in feature.1 %}[{{ coord.0 }}, {{coord.1}}]{% if not forloop.last %},{% endif %}
+        {% endfor %}]
+    }
+}{% if not forloop.last %},{% endif %}{% endfor %}
+]}

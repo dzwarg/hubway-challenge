@@ -26,11 +26,17 @@ div#chart {
     z-index: 9;
 }
 
-g path {
+g path.bounds {
     stroke-linecap: round;
-    stroke-width: 0.01px;
     stroke: #000;
     fill: #fff;
+    stroke-width: 2px;
+}
+
+g path.routes {
+    stroke: #000;
+    stroke-width: 1px;
+    fill: none;
 }
 </style>
 </head>
@@ -45,10 +51,9 @@ var h = document.body.clientHeight,
     margin = {top: 60, right: 25, bottom: 25, left: 25},
     width = w - margin.left - margin.right,
     height = h - margin.top - margin.bottom,
-    zoom = d3.behavior.zoom();
-
-zoom.scale([95]);
-zoom.translate([-34500.34993394186,-17880.63270005254]);
+    zoom = d3.behavior.zoom(),
+    interval = null,
+    pgsize = 100;
 
 var vis = d3.select('#chart')
         .append('svg')
@@ -57,21 +62,71 @@ var vis = d3.select('#chart')
         .attr('pointer-events', 'all')
         .append('g')
         .call(zoom.on('zoom', redraw))
-        .append('g')
-        .attr('transform', 'translate(-34500.34993394186,-17880.63270005254)scale(95.00950852026126)');
-
+        .append('g');
+        
 function map() {
-    d3.json('districts/', function(collection) {
-        vis.selectAll('path')
-            .data(collection.features)
+    var proj = null;
+    var bounds = function(json) {
+        var data = [{
+            type:'Feature',
+            geometry:{
+                type:'LineString',
+                coordinates:[
+                    [json.bounds[0], json.bounds[1]],
+                    [json.bounds[0], json.bounds[3]],
+                    [json.bounds[2], json.bounds[3]],
+                    [json.bounds[2], json.bounds[1]],
+                    [json.bounds[0], json.bounds[1]]
+                ]
+            }
+        }];
+        
+        var scale = (width > height) ? 
+            (height / (json.bounds[3] - json.bounds[1])) : 
+            (width / (json.bounds[2] - json.bounds[0]));
+        var xoffset = (width > height) ?
+            (((width / 2) / scale) - (json.bounds[2] - json.bounds[0])/2) :
+            (margin.left / scale);
+        var yoffset = (height > width) ?
+            (((height / 2) / scale) - (json.bounds[3] - json.bounds[1])/2) :
+            (margin.top / scale);
+        proj = function (coordinates) {
+            return [
+                (xoffset + coordinates[0] - json.bounds[0]) * scale,
+                (yoffset + coordinates[1] - json.bounds[1]) * scale
+            ];
+        };
+                
+        vis.selectAll('path.bounds')
+            .data(data)
             .enter()
             .append('path')
-            .attr('d', d3.geo.path().projection(d3.geo.mercator()));
-
-        vis.on('mousewheel', function(){
-            alert('wheel!');
-        });
-    });
+            .attr('class', 'bounds')
+            .attr('d', d3.geo.path().projection(proj));
+        
+        getRoutes(0);
+    };
+    
+    var getRoutes = function(x) {
+        var routes = function(json) {
+            if (json) {
+                vis.selectAll('path.routes')
+                    .data(json.features, function(d) { return d.id; } )
+                    .enter()
+                    .append('path')
+                    .attr('class', 'routes')
+                    .attr('d', d3.geo.path().projection(proj));
+                    
+                setTimeout(function() {
+                        getRoutes(x + pgsize);
+                    }, 10);
+            }
+        };
+        
+        d3.json('routes/?offset=' + x + '&limit=' + pgsize, routes);
+    };
+    
+    d3.json('bounds/', bounds);
 };
 
 function redraw() {
