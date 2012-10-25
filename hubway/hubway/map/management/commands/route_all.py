@@ -74,7 +74,7 @@ class Command(BaseCommand):
                 geom = self._spt(lat1, lng1, lat2, lng2)
                 count += 1
 
-                batchgeom.append(geom)
+                batchgeom.append((count,geom,))
                 
                 if len(batchgeom) >= options['number']:
                     self.dropfile(batchgeom, count, **options)
@@ -113,7 +113,7 @@ class Command(BaseCommand):
             else:
                 allgeom.extend( dbedge[5] )
 
-	spt.destroy()
+        spt.destroy()
 
         return allgeom
 

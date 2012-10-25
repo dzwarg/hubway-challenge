@@ -17,13 +17,20 @@ div#controls {
     z-index:10;
 }
 
-div#chart {
+div#chart, canvas#base {
     position:absolute;
     top: 0;
     bottom: 0;
     left: 0;
     right: 0;
+}
+
+div#chart {
     z-index: 9;
+}
+
+canvas#base {
+    z-index: 10;
 }
 
 g path.bounds {
@@ -45,6 +52,7 @@ g path.routes {
 <div id="controls">
 <h1>Hubway Challenge Map</h1>
 </div>
+<canvas id="base"></canvas>
 <div id="chart"></div>
 <script type="text/javascript">
 var h = document.body.clientHeight,
@@ -54,7 +62,14 @@ var h = document.body.clientHeight,
     height = h - margin.top - margin.bottom,
     zoom = d3.behavior.zoom(),
     interval = null,
-    pgsize = 100;
+    pgsize = 100,
+    canvas = document.getElementById('base'),
+    ctx = canvas.getContext('2d'),
+    proj = null;
+
+canvas.width = width;
+canvas.height = height;
+ctx.strokeStyle = 'rgba(0,0,0,0.01)';
 
 var vis = d3.select('#chart')
         .append('svg')
@@ -66,7 +81,6 @@ var vis = d3.select('#chart')
         .append('g');
         
 function map() {
-    var proj = null;
     var bounds = function(json) {
         var data = [{
             type:'Feature',
@@ -111,12 +125,11 @@ function map() {
     var getRoutes = function(x) {
         var routes = function(json) {
             if (json) {
-                vis.selectAll('path.routes')
-                    .data(json.features, function(d) { return d.id; } )
-                    .enter()
-                    .append('path')
-                    .attr('class', 'routes')
-                    .attr('d', d3.geo.path().projection(proj));
+                json.features.map(function(d) {
+                    ctx.beginPath();
+                    d.geometry.coordinates.map(drawPath);
+                    ctx.stroke();
+                });
                     
                 setTimeout(function() {
                         getRoutes(x + pgsize);
@@ -128,6 +141,13 @@ function map() {
     };
     
     d3.json('bounds/', bounds);
+};
+
+function drawPath(d,i) {
+    if (i == 0)
+        ctx.moveTo.apply(ctx, proj(d));
+    else
+        ctx.lineTo.apply(ctx, proj(d));
 };
 
 function redraw() {
