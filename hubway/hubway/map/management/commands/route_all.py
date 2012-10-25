@@ -28,8 +28,6 @@ class Command(BaseCommand):
     # we'll need these later
     nodedb = None
     graph = None
-    st = State(1,time())
-    wo = WalkOptions()
     tpl = loader.get_template('map/featurecollection.json')
 
     def handle(self, *args, **options):
@@ -82,8 +80,6 @@ class Command(BaseCommand):
                     self.dropfile(batchgeom, count, **options)
                     batchgeom = []
 
-                    return 1
-
                 geom = None
 
 
@@ -100,8 +96,8 @@ class Command(BaseCommand):
         dest = self.nodedb.nearest_node(lat2, lng2)
             
         # route!
-        spt = self.graph.shortest_path_tree('osm-'+orig[0], 'osm-'+dest[0], self.st, self.wo)
-    
+        spt = self.graph.shortest_path_tree('osm-'+orig[0], 'osm-'+dest[0], State(1,time()), None)
+
         # get the path vertices and edges
         pvert, pedges = spt.path('osm-'+dest[0])
     
@@ -116,10 +112,9 @@ class Command(BaseCommand):
                 allgeom.extend( reversed( dbedge[5] ) )
             else:
                 allgeom.extend( dbedge[5] )
-            dbedge = None
 
-        spt.destroy()
-    
+	spt.destroy()
+
         return allgeom
 
     def dropfile(self, geom, count, **options):
