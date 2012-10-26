@@ -57,8 +57,17 @@ def routes(request):
         except:
             pass
 
-    length = 0
-    nstrides = 0
-    # trim excess coords
-
+    # a simplify routine that strips out coordinates closer to each
+    # other than the resolution
+    for feature in fc['features']:
+        coords = feature['geometry']['coordinates']
+        length = 0
+        nstrides = 0
+        newcoords = coords[0:1]
+        for coord in coords[1:]:
+            dist = pow(pow(newcoords[-1][0]-coord[0],2) + pow(newcoords[-1][1]-coord[1],2), 0.5)
+            if dist > resolution:
+                newcoords.append(coord)
+        feature['geometry']['coordinates'] = newcoords
+        
     return HttpResponse(json.dumps(fc), content_type='application/json')
