@@ -70,6 +70,8 @@ var h = document.body.clientHeight,
 
 canvas.width = width;
 canvas.height = height;
+canvas.style.marginTop = margin.top;
+canvas.style.marginLeft = margin.left;
 ctx.strokeStyle = 'rgba(0,0,0,0.01)';
 
 var vis = d3.select('#chart')
@@ -138,7 +140,7 @@ function map() {
             }
         };
         
-        d3.json('routes/?offset=' + x + '&scale=' + (1/scale), routes);
+        d3.json('routes/?offset=' + x + '&scale=' + (0.5/scale), routes);
     };
     
     d3.json('bounds/', bounds);
