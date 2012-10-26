@@ -6,9 +6,11 @@
 <style type="text/css">
 body {
     font-family: Arial, Helvetica, sans-serif;
+    margin: 0;
 }
 
 h1 {
+    margin: 8px;
     display: inline;
 }
 
@@ -17,7 +19,7 @@ div#controls {
     z-index:10;
 }
 
-div#chart, canvas#base {
+div#chart {
     position:absolute;
     top: 0;
     bottom: 0;
@@ -35,9 +37,9 @@ canvas#base {
 
 g path.bounds {
     stroke-linecap: round;
-    stroke: #000;
+    stroke: #999;
     fill: #fff;
-    stroke-width: 2px;
+    stroke-width: 0.5px;
 }
 
 g path.routes {
@@ -46,11 +48,16 @@ g path.routes {
     fill: none;
     stroke-opacity: 0.1;
 }
+
+img.frame {
+    position:absolute;
+    z-index:11;
+}
 </style>
 </head>
 <body>
 <div id="controls">
-<h1>Hubway Challenge Map</h1>
+<h1>Hubway Challenge Map</h1><span id="frames"></span>
 </div>
 <canvas id="base"></canvas>
 <div id="chart"></div>
@@ -72,6 +79,7 @@ canvas.width = width;
 canvas.height = height;
 canvas.style.marginTop = margin.top;
 canvas.style.marginLeft = margin.left;
+canvas.style.position = 'absolute';
 ctx.strokeStyle = 'rgba(0,0,0,0.01)';
 
 var vis = d3.select('#chart')
@@ -133,6 +141,20 @@ function map() {
                     d.geometry.coordinates.map(drawPath);
                     ctx.stroke();
                 });
+
+                if (x % (pgsize * 10) == 0) {
+                    //make an image
+                    var img = $('<img/>');
+                    img.attr('id', x);
+                    img.attr('src', canvas.toDataURL());
+                    img.addClass('frame');
+                    img.css('margin', margin.top + 'px ' + margin.left + 'px');
+                    $(document.body).append(img);
+
+                    $('#frames').text((x / (pgsize * 10)) + ' frames');
+
+                    ctx.clearRect(0,0,width,height);
+                }
                     
                 setTimeout(function() {
                         getRoutes(x + pgsize);
