@@ -58,6 +58,11 @@ img.frame {
 <body>
 <div id="controls">
 <h1>Hubway Challenge Map</h1><span id="frames"></span>
+<button id="prev">&laquo;</button>
+<button id="next">&raquo;</button>
+<button id="open">New Win</button>
+<button id="all">All</button>
+<button id="none">None</button>
 </div>
 <canvas id="base"></canvas>
 <div id="chart"></div>
@@ -73,7 +78,9 @@ var h = document.body.clientHeight,
     canvas = document.getElementById('base'),
     ctx = canvas.getContext('2d'),
     proj = null,
-    scale = 0;
+    scale = 0,
+    boff = 0.1,
+    frame = -1;
 
 canvas.width = width;
 canvas.height = height;
@@ -93,6 +100,10 @@ var vis = d3.select('#chart')
         
 function map() {
     var bounds = function(json) {
+        json.bounds[0] += boff;
+        json.bounds[1] += boff;
+        json.bounds[2] -= boff;
+        json.bounds[3] -= boff;
         var data = [{
             type:'Feature',
             geometry:{
@@ -180,6 +191,32 @@ function redraw() {
 };
 
 map();
+
+$('#none').on('click', function() {
+    $('img').hide();
+    frame = 0;
+});
+$('#all').on('click', function() {
+    $('img').show();
+    frame = 0;
+});
+$('#prev').on('click', function() {
+    var i = $('img');
+    i.hide();
+    if (frame == 0)
+        frame = $('img').length;
+    $(i[--frame]).show();
+});
+$('#next').on('click', function() {
+    var i = $('img');
+    i.hide();
+    if (frame == $('img').length - 1)
+        frame = -1;
+    $(i[++frame]).show();
+});
+$('#open').on('click', function() {
+    window.open($('img:visible').attr('src'), '_blank');
+});
 </script>
 </body>
 </html>
