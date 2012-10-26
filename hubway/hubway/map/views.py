@@ -3,7 +3,7 @@ from django.http import HttpResponse
 from django.db import connection
 from django.conf import settings
 
-import logging
+import logging, json
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +47,18 @@ def routes(request):
     logger.info('offset of routes to calculate is %d' % offset)
     
     rsp = open('%s/routes-%d.json' % (settings.DATA_DIR, offset,), 'r')
-    txt = rsp.read()
+    fc = json.load(rsp)
     rsp.close()
 
-    return HttpResponse(txt, content_type='application/json')
+    resolution = 0.00001
+    if 'scale' in request.GET:
+        try:
+            resolution = float(request.GET['scale'])
+        except:
+            pass
+
+    length = 0
+    nstrides = 0
+    # trim excess coords
+
+    return HttpResponse(json.dumps(fc), content_type='application/json')

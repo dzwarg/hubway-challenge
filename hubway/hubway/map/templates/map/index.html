@@ -65,7 +65,8 @@ var h = document.body.clientHeight,
     pgsize = 100,
     canvas = document.getElementById('base'),
     ctx = canvas.getContext('2d'),
-    proj = null;
+    proj = null,
+    scale = 0;
 
 canvas.width = width;
 canvas.height = height;
@@ -96,7 +97,7 @@ function map() {
             }
         }];
         
-        var scale = (width > height) ? 
+        scale = (width > height) ? 
             (height / (json.bounds[3] - json.bounds[1])) : 
             (width / (json.bounds[2] - json.bounds[0]));
         var xoffset = (width > height) ?
@@ -137,7 +138,7 @@ function map() {
             }
         };
         
-        d3.json('routes/?offset=' + x, routes);
+        d3.json('routes/?offset=' + x + '&scale=' + (1/scale), routes);
     };
     
     d3.json('bounds/', bounds);
