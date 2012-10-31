@@ -14,7 +14,7 @@ class Command(BaseCommand):
         make_option('-n', '--number',
             action='store',
             dest='number',
-            default=1,
+            default=10,
             type=int,
             help='The number of route batches to combine into a single frame.'),
         make_option('-i', '--input',
