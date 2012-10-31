@@ -30,3 +30,5 @@ env
 .env
 logs/*log
 data/routes-*json
+data/routes-*png
+data/routes-*jpg
