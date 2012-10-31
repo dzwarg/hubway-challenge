@@ -19,6 +19,13 @@ div#controls {
     z-index:10;
 }
 
+div#description {
+    margin: 0 50px;
+    position: absolute;
+    top: 60px;
+    z-index: 12;
+}
+
 div#chart {
     position:absolute;
     top: 0;
@@ -58,11 +65,21 @@ img.frame {
 <body>
 <div id="controls">
 <h1>Hubway Challenge Map</h1><span id="frames"></span>
-<button id="prev">&laquo;</button>
-<button id="next">&raquo;</button>
-<button id="open">New Win</button>
-<button id="all">All</button>
-<button id="none">None</button>
+<button id="prev" title="Show the previous frame.">&laquo;</button>
+<button id="next" title="Show the next frame.">&raquo;</button>
+<button id="open" title="Open the current frame in a new window (useful for saving).">New Window (Current Frame)</button>
+<button id="all" title="Show all frames of the animation at once. WARNING: this could crash your browser.">Composite All Frames</button>
+<button id="none" title="Hide all the frames that have been generated so far.">Show No Frames</button>
+<button id="pause" title="Pause or resume the animation.">Pause</button>
+</div>
+<div id="description">
+    <p>This animation loads the routes from over a year of Hubway bicycle trips.
+    The routes are loaded in batches of 100, and added to the map with 1% opacity;
+    routes with many trips appear darker than routes with few trips.<p>
+    
+    <p>To stop loading more trips, press the 'Pause' button.</p>
+    
+    <p><a href="#" onclick="$('#description').hide();">Hide these instructions.</a></p>
 </div>
 <canvas id="base"></canvas>
 <div id="chart"></div>
@@ -80,7 +97,9 @@ var h = document.body.clientHeight,
     proj = null,
     scale = 0,
     boff = 0.1,
-    frame = -1;
+    frame = -1,
+    run = true,
+    rteIdx = 100;
 
 canvas.width = width;
 canvas.height = height;
@@ -141,10 +160,28 @@ function map() {
             .attr('class', 'bounds')
             .attr('d', d3.geo.path().projection(proj));
         
+        $('#pause').on('click', function() {
+            run = !run;
+            if (run) {
+                $(this).text('Pause');
+                
+                // resume at the last index
+                getRoutes(rteIdx);
+            }
+            else {
+                $(this).text('Play');
+                
+                // merely setting the run flag to false should stop
+                // the loading
+            }
+        });
+        
         getRoutes(100);
     };
     
     var getRoutes = function(x) {
+        rteIdx = x;
+        
         var routes = function(json) {
             if (json) {
                 json.features.map(function(d) {
@@ -166,10 +203,12 @@ function map() {
 
                     ctx.clearRect(0,0,width,height);
                 }
-                    
-                setTimeout(function() {
-                        getRoutes(x + pgsize);
+                
+                if (run) {
+                    setTimeout(function() {
+                            getRoutes(x + pgsize);
                     }, 10);
+                }
             }
         };
         
