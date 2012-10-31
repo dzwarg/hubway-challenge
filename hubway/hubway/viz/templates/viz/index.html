@@ -26,6 +26,59 @@ div#chart {
     z-index: 9;
 }
 
+div#divm {
+    left: 25px;
+    top: 60px;
+}
+
+div#divf {
+    right: 25px;
+    top: 60px;
+}
+
+div#divu {
+    bottom: 15px;
+    left: 30%;
+}
+
+div.bubble {
+    display: none;
+    border: 1px solid #DDDDDD;
+    padding: 5px;
+    position: absolute;
+    width: 150px;
+}
+
+div.pipe {
+    display: none;
+    position: absolute;
+    width: 350px;
+    padding: 5px;
+    border: 1px solid #DDDDDD;
+    background-color: #FFFFFF;
+    top: 285px;
+    z-index: 12;
+}
+div#pipe-single {
+    left: 150px;
+}
+div#pipe-all {
+    right: 150px;
+}
+
+div.histo {
+    display: none;
+    position: absolute;
+    width:250px;
+    padding: 5px;
+    border: 1px solid #DDDDDD;
+    background-color: #FFFFFF;
+    opacity: 0.7;
+    z-index: 12;
+    top: 60px;
+    left: 25px;
+}
+
 g.node circle {
     fill: rgb(255,255,255);
     stroke: rgb(0,0,0);
@@ -108,6 +161,52 @@ g.stripe rect {
 <input id="allbtn" type="radio" name="gender" onclick="reset();" checked="checked" disabled="true"/><label for="allbtn">All</label>
 </div>
 <div id="chart"></div>
+<div id="divm" class="bubble">
+These bubbles represent the most popular bikes for all male-identified users
+of Hubway bicycles, from 7/29/11 to 10/1/12.
+</div>
+<div id="divf" class="bubble">
+These bubbles represent the most popular bikes for all female-identified users
+of Hubway bicycles, from 7/29/11 to 10/1/12.
+</div>
+<div id="divu" class="bubble">
+These bubbles represent the most popular bikes for all gender-unidentified users
+of Hubway bicycles, from 7/29/11 to 10/1/12.
+</div>
+<div id="pipe-single" class="pipe">
+This is a timeline of the usage of this bike. Time starts at the upper-left
+corner of the screen, and moves from left to right, top to bottom.  Each vertical
+bar is a bicycle rental, where the width of the bar represents the time the bicycle
+was used, and the color represents the gender of the cyclist that checked out the
+bicycle.
+</div>
+<div id="pipe-all" class="pipe">
+The light gray dots behind the bars is the total number of trips for all hubway 
+bicycles at the specific time. You can compare when this bicycle was rented vs.
+the total volume of traffic on all bicycles this way.
+</div>
+<div id="histo-all" class="histo">
+This chart is a histogram, where the bar height represents the number of bicycles,
+and the number of rides on a bicycle is the X position of the bar. In this 
+example, there are 19 bicycles with over 1000 trips.
+</div>
+<div id="histo-u" class="histo">
+This chart is a histogram, where the bar height represents the number of bicycles,
+and the number of rides on a bicycle is the X position of the bar. In this 
+example, there are 9 bicycles with over 380 trips.
+</div>
+<div id="histo-m" class="histo">
+This chart is a histogram of male riders, where the bar height represents the 
+number of bicycles, and the number of male riders on a bicycle is the X position
+of the bar. In this example, there are 12 bicycles that have had over 500, and less
+than 520 trips by male riders.
+</div>
+<div id="histo-f" class="histo">
+This chart is a histogram of female riders, where the bar height represents the 
+number of bicycles, and the number of female riders on a bicycle is the X position
+of the bar. In this example, there are 19 bicycles that have had over 170, and less
+than 180 trips by female riders.
+</div>
 <script type="text/javascript">
 var h = document.body.clientHeight,
     w = document.body.clientWidth,
@@ -138,6 +237,8 @@ function reset(callback) {
                 callback = bubble;
         }
     }
+
+    $('div.bubble, div.pipe, div.histo').hide();
     
     if (mode == 'bike-bubble') {
         node = d3.selectAll('g.bubble');
@@ -186,7 +287,12 @@ function bubblecounts(url, offx, offy, cls) {
                 });
                 
         node.append('title')
-            .text(function(d) { return d.value; });
+            .text(function(d) { 
+                var gender = (cls == 'm') ? 'Male rider/\n' :
+                            (cls == 'f') ? 'Female rider/\n' :
+                            'Unknown rider/\n';
+                return gender + d.value + ' trips';
+            });
 
         node.append('circle')
             .attr('r', 0)
@@ -199,7 +305,7 @@ function bubblecounts(url, offx, offy, cls) {
             .duration(2000)
             .each('end', function() { dfd.resolve(); });
 
-        vis.attr('loading', false);
+        $('div#div'+cls).show();
     });
     
     return dfd;
@@ -213,10 +319,10 @@ function bubble(d) {
     vis.attr('mode', 'bike-bubble')
         .attr('loading', true);
     var extra = d3.select('input[name="gender"]:checked').attr('value'),
-        r = ((width>height)?height:width)/4,
-        dfd1 = bubblecounts('counts/?g=Male&l=75', r, 0, 'm'),
-        dfd2 = bubblecounts('counts/?g=Female&l=75', width/2-r, 0, 'f'),
-        dfd3 = bubblecounts('counts/?g=&l=75', width/4, height/2 * Math.cos(60*2/Math.PI), 'u');
+        r = ((width>height)?width:height)/4,
+        dfd1 = bubblecounts('counts/?g=Male&l=75', width/2-2*r, 0, 'm'),
+        dfd2 = bubblecounts('counts/?g=Female&l=75', width/2, 0, 'f'),
+        dfd3 = bubblecounts('counts/?g=&l=75', width/2-r, height/2 * Math.cos(60*2/Math.PI), 'u');
         
     $.when(dfd1, dfd2, dfd3).then(function() {
         var node = d3.selectAll('g.node');
@@ -242,6 +348,8 @@ function bubble(d) {
                 .on('mouseover', null)
                 .on('mouseout', null)
                 .data([d], function(d) { return d.number; });
+                
+            $('div.bubble').hide();
             
             node.exit()
                 .transition()
@@ -261,6 +369,9 @@ function bubble(d) {
                 .style('stroke-opacity', 0)
                 .remove();
         });
+        
+        vis.attr('loading', false);
+        
 /*
         if (d) {
             var selected = vis.selectAll('g.node')
@@ -282,7 +393,10 @@ function histo() {
     vis.attr('mode', 'bike-histo')
         .attr('loading', true);
     var extra = d3.select('input[name="gender"]:checked').attr('value'),
-        extraUrl = (extra !== null) ? ('?g=' + extra) : '';
+        extraUrl = (extra !== null) ? ('?g=' + extra) : '',
+        selector = (extra !== null) ? 
+            ((extra == '') ? 'div#histo-u' : ('div#histo-'+extra[0].toLowerCase())) :
+            'div#histo-all';
     d3.json('counts/' + extraUrl, function(json) {
         var x = d3.scale.linear()
                 .domain([0, d3.max(json.bikes, function(d) { return d.count; })])
@@ -352,7 +466,10 @@ function histo() {
             .attr('class', 'x axis')
             .attr('transform', 'translate(0,' + height + ')')
             .call(xAxis);
-            
+        
+        $('div.histo').hide();
+        $(selector).show();
+        
         vis.attr('loading', false);
     });
 };
@@ -440,11 +557,8 @@ function loadpipe(d) {
                 var rowN = parseInt((d.a - min) / rowW, 10);
                 return 'translate(' + ((20*width)*((d.a-min) % rowW)/range) + ',' + 
                     (rowN * height/20) + ')';
-            });
-
-        node.classed('m', function(d) { return d.gender == 'Male'; })
-            .classed('f', function(d) { return d.gender == 'Female'; })
-            .classed('u', function(d) { return d.gender == ''; })
+            })
+            .style('fill-opacity', 0)
             .transition()
             .duration(2000)
             .delay(function(d,i) {
@@ -452,6 +566,12 @@ function loadpipe(d) {
                 return rowN * 100; 
             })
             .style('fill-opacity', 1);
+
+        node.classed('m', function(d) { return d.gender == 'Male'; })
+            .classed('f', function(d) { return d.gender == 'Female'; })
+            .classed('u', function(d) { return d.gender == ''; });
+        
+        $('div#pipe-single').show();
         
         vis.attr('loading', false);
     });
@@ -490,6 +610,8 @@ function loadpipe(d) {
             .transition()
             .duration(2000)
             .style('stroke-opacity', 1);
+            
+        $('div#pipe-all').show();
     });
 };
 
